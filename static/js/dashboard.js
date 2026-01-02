@@ -6,8 +6,7 @@
 let currentAttempt = null;
 let sessionData = null;
 let attemptData = null;
-let eventSource = null;
-let isLiveMode = false;
+let isRefreshing = false;
 let sortColumn = null;
 let sortDirection = 'asc';
 
@@ -30,6 +29,7 @@ const elements = {
     playerFilter: document.getElementById('player-filter'),
     abilityFilter: document.getElementById('ability-filter'),
     clearFilters: document.getElementById('clear-filters'),
+    refreshBtn: document.getElementById('refresh-btn'),
     exportBtn: document.getElementById('export-btn'),
     abilitiesTable: document.querySelector('#abilities-table tbody'),
     debuffsTable: document.querySelector('#debuffs-table tbody'),
@@ -47,11 +47,11 @@ document.addEventListener('DOMContentLoaded', () => {
     initKeyboardShortcuts();
     initSorting();
     initExport();
+    initRefresh();
     loadSession();
     loadSummary();
     loadAttempts();
     loadState();
-    initSSE();
 });
 
 // Keyboard shortcuts
@@ -73,6 +73,12 @@ function initKeyboardShortcuts() {
             if (tabs[tabIndex]) {
                 switchTab(tabs[tabIndex]);
             }
+        }
+
+        // Ctrl+R for refresh
+        if (e.ctrlKey && e.key === 'r') {
+            e.preventDefault();
+            refreshData();
         }
 
         // Ctrl+F for search
@@ -179,83 +185,44 @@ async function exportData() {
     }
 }
 
-// Server-Sent Events for real-time updates
-function initSSE() {
-    if (eventSource) {
-        eventSource.close();
-    }
-
-    eventSource = new EventSource('/api/events');
-
-    eventSource.onopen = () => {
-        console.log('SSE connected');
-        isLiveMode = true;
-        updateConnectionStatus(true);
-    };
-
-    eventSource.onerror = (error) => {
-        console.error('SSE error:', error);
-        isLiveMode = false;
-        updateConnectionStatus(false);
-
-        setTimeout(() => {
-            if (eventSource.readyState === EventSource.CLOSED) {
-                initSSE();
-            }
-        }, 5000);
-    };
-
-    eventSource.onmessage = (event) => {
-        try {
-            const message = JSON.parse(event.data);
-            handleSSEEvent(message);
-        } catch (error) {
-            console.error('Failed to parse SSE message:', error);
-        }
-    };
+// Manual refresh functionality
+function initRefresh() {
+    elements.refreshBtn.addEventListener('click', refreshData);
 }
 
-function handleSSEEvent(message) {
-    console.log('SSE event:', message.type, message.data);
+async function refreshData() {
+    if (isRefreshing) return;
 
-    switch (message.type) {
-        case 'connected':
-            console.log('SSE connection confirmed');
-            break;
+    isRefreshing = true;
+    elements.refreshBtn.textContent = 'Refreshing...';
+    elements.refreshBtn.disabled = true;
 
-        case 'state_change':
-            elements.parserState.textContent = message.data.state;
-            elements.parserState.className = `state-badge ${message.data.state}`;
-            break;
+    try {
+        const response = await fetch('/api/refresh', { method: 'POST' });
+        const data = await response.json();
 
-        case 'attempt_complete':
-            loadAttempts();
-            loadSummary();
-            loadSession();
-            showNotification(`Attempt #${message.data.attempt_number} - ${message.data.outcome.toUpperCase()}`);
-            break;
+        if (response.ok && data.success) {
+            // Reload all data
+            await loadSession();
+            await loadSummary();
+            await loadAttempts();
+            await loadState();
 
-        case 'data_update':
-            loadSession();
-            loadSummary();
-            loadAttempts();
-            loadState();
             if (currentAttempt) {
-                loadAttemptDetails(currentAttempt);
+                await loadAttemptDetails(currentAttempt);
             }
-            break;
 
-        default:
-            console.log('Unknown SSE event type:', message.type);
-    }
-}
-
-function updateConnectionStatus(connected) {
-    const badge = elements.parserState;
-    if (connected) {
-        badge.classList.add('connected');
-    } else {
-        badge.classList.remove('connected');
+            showNotification(`Refreshed: ${data.lines_processed.toLocaleString()} lines, ${data.attempts} attempts`);
+        } else {
+            showNotification(data.error || 'Refresh failed');
+        }
+    } catch (error) {
+        console.error('Refresh failed:', error);
+        showNotification('Refresh failed - check console');
+    } finally {
+        isRefreshing = false;
+        elements.refreshBtn.textContent = 'Refresh';
+        elements.refreshBtn.disabled = false;
     }
 }
 

@@ -4,25 +4,17 @@
 Usage:
     python -m src.main --parse /path/to/log.log           # Parse a completed log
     python -m src.main --parse /path/to/log.log --web     # Parse and launch dashboard
-    python -m src.main --watch /path/to/log.log           # Watch a log in real-time
+    python -m src.main --parse /path/to/log.log --export report.json  # Export to JSON
 """
 
 import argparse
 import json
 import sys
-import time
 from pathlib import Path
 
-from .models.data_models import AttemptOutcome, FightAttempt, ParserState
+from .models.data_models import FightAttempt, ParserState
 from .parser.log_parser import LogParser
-from .watcher.file_watcher import LogFileWatcher
-from .web.server import (
-    broadcast_attempt_complete,
-    broadcast_new_data,
-    broadcast_state_change,
-    run_server,
-    run_server_background,
-)
+from .web.server import run_server
 
 
 def print_attempt_report(attempt: FightAttempt) -> None:
@@ -154,65 +146,7 @@ def parse_log(filepath: str, verbose: bool = False, web: bool = False, port: int
     if web:
         print(f"\nLaunching web dashboard at http://localhost:{port}")
         print("Press Ctrl+C to stop\n")
-        run_server(parser, port=port)
-
-
-def watch_log(filepath: str, port: int = 8080, verbose: bool = False) -> None:
-    """Watch a log file in real-time with live web dashboard."""
-    path = Path(filepath)
-    if not path.exists():
-        print(f"Error: File not found: {filepath}", file=sys.stderr)
-        sys.exit(1)
-
-    print(f"Watching log file: {filepath}")
-    print(f"Web dashboard available at: http://localhost:{port}")
-    print("Press Ctrl+C to stop\n")
-
-    parser = LogParser()
-
-    # Set up callbacks that also broadcast via SSE
-    def on_attempt_complete_with_broadcast(attempt: FightAttempt) -> None:
-        print_attempt_report(attempt)
-        broadcast_attempt_complete(attempt)
-
-    def on_state_change_with_broadcast(state: ParserState) -> None:
-        if verbose:
-            print(f"[STATE] {state.value}")
-        broadcast_state_change(state)
-
-    def on_new_lines(lines: list) -> None:
-        # Broadcast that new data is available
-        broadcast_new_data()
-
-    parser.set_on_attempt_complete(on_attempt_complete_with_broadcast)
-    parser.set_on_state_change(on_state_change_with_broadcast)
-
-    # Create file watcher
-    watcher = LogFileWatcher(filepath, parser, on_new_lines=on_new_lines)
-
-    try:
-        # Start web server in background
-        print("Starting web server...")
-        run_server_background(parser, port=port)
-        time.sleep(1)  # Give server time to start
-
-        # Start watching (this parses existing content first)
-        print("Starting file watcher...")
-        watcher.start(read_existing=True)
-
-        print(f"\nInitial parse complete: {parser.lines_processed:,} lines")
-        print_session_summary(parser)
-        print("\nWatching for new log entries... (Ctrl+C to stop)")
-
-        # Keep main thread alive
-        while True:
-            time.sleep(1)
-
-    except KeyboardInterrupt:
-        print("\n\nStopping...")
-        watcher.stop()
-        print_session_summary(parser)
-        print("Goodbye!")
+        run_server(parser, log_file_path=filepath, port=port)
 
 
 def export_json(filepath: str, output: str) -> None:
@@ -242,23 +176,16 @@ Examples:
   python -m src.main --parse Network_12345.log
   python -m src.main --parse Network_12345.log --web
   python -m src.main --parse Network_12345.log --web --port 9000
-  python -m src.main --watch Network_12345.log --port 9000
   python -m src.main --parse Network_12345.log --export report.json
         """
     )
 
-    group = arg_parser.add_mutually_exclusive_group(required=True)
-    group.add_argument(
+    arg_parser.add_argument(
         "--parse",
         metavar="LOGFILE",
-        help="Parse a completed log file"
+        required=True,
+        help="Parse a log file"
     )
-    group.add_argument(
-        "--watch",
-        metavar="LOGFILE",
-        help="Watch a log file in real-time"
-    )
-
     arg_parser.add_argument(
         "--port",
         type=int,
@@ -278,18 +205,15 @@ Examples:
     arg_parser.add_argument(
         "--web",
         action="store_true",
-        help="Launch web dashboard after parsing"
+        help="Launch web dashboard after parsing (use Refresh button to reload data)"
     )
 
     args = arg_parser.parse_args()
 
-    if args.parse:
-        if args.export:
-            export_json(args.parse, args.export)
-        else:
-            parse_log(args.parse, verbose=args.verbose, web=args.web, port=args.port)
-    elif args.watch:
-        watch_log(args.watch, port=args.port, verbose=args.verbose)
+    if args.export:
+        export_json(args.parse, args.export)
+    else:
+        parse_log(args.parse, verbose=args.verbose, web=args.web, port=args.port)
 
 
 if __name__ == "__main__":

@@ -1,13 +1,10 @@
 """Flask web server for FFXIV Battle Tracker dashboard."""
 
 import json
-import os
-import queue
-import threading
 from pathlib import Path
-from typing import Generator, List, Optional
+from typing import Optional
 
-from flask import Flask, Response, jsonify, render_template, request
+from flask import Flask, jsonify, render_template, request
 
 from ..models.data_models import FightAttempt, ParserState, RaidSession
 from ..parser.log_parser import LogParser
@@ -19,60 +16,13 @@ TEMPLATE_DIR = PROJECT_ROOT / "templates"
 STATIC_DIR = PROJECT_ROOT / "static"
 
 
-class EventManager:
-    """Manages Server-Sent Events subscriptions and broadcasting."""
-
-    def __init__(self):
-        """Initialize the event manager."""
-        self._subscribers: List[queue.Queue] = []
-        self._lock = threading.Lock()
-
-    def subscribe(self) -> queue.Queue:
-        """Subscribe to events and return a queue for receiving them."""
-        q = queue.Queue(maxsize=100)
-        with self._lock:
-            self._subscribers.append(q)
-        return q
-
-    def unsubscribe(self, q: queue.Queue) -> None:
-        """Unsubscribe from events."""
-        with self._lock:
-            if q in self._subscribers:
-                self._subscribers.remove(q)
-
-    def broadcast(self, event_type: str, data: dict) -> None:
-        """Broadcast an event to all subscribers."""
-        message = {
-            "type": event_type,
-            "data": data,
-        }
-        with self._lock:
-            dead_queues = []
-            for q in self._subscribers:
-                try:
-                    q.put_nowait(message)
-                except queue.Full:
-                    dead_queues.append(q)
-            # Remove dead queues
-            for q in dead_queues:
-                self._subscribers.remove(q)
-
-    def subscriber_count(self) -> int:
-        """Get the number of active subscribers."""
-        with self._lock:
-            return len(self._subscribers)
-
-
-# Global event manager
-event_manager = EventManager()
-
-
-def create_app(parser: Optional[LogParser] = None) -> Flask:
+def create_app(parser: Optional[LogParser] = None, log_file_path: Optional[str] = None) -> Flask:
     """Create and configure the Flask application.
 
     Args:
         parser: Optional LogParser instance with parsed data.
                 If not provided, creates an empty parser.
+        log_file_path: Path to the log file for refresh functionality.
 
     Returns:
         Configured Flask application
@@ -83,8 +33,9 @@ def create_app(parser: Optional[LogParser] = None) -> Flask:
         static_folder=str(STATIC_DIR),
     )
 
-    # Store parser in app config for access in routes
+    # Store parser and log file path in app config for access in routes
     app.config["parser"] = parser or LogParser()
+    app.config["log_file_path"] = log_file_path
 
     # Register routes
     register_routes(app)
@@ -100,35 +51,30 @@ def register_routes(app: Flask) -> None:
         """Serve the main dashboard page."""
         return render_template("index.html")
 
-    @app.route("/api/events")
-    def sse_events():
-        """Server-Sent Events endpoint for real-time updates."""
-        def generate() -> Generator[str, None, None]:
-            q = event_manager.subscribe()
-            try:
-                # Send initial connection message
-                yield f"data: {json.dumps({'type': 'connected', 'data': {}})}\n\n"
+    @app.route("/api/refresh", methods=["POST"])
+    def refresh_data():
+        """Re-parse the log file to get latest data."""
+        log_file_path = app.config.get("log_file_path")
 
-                while True:
-                    try:
-                        # Wait for events with timeout
-                        message = q.get(timeout=30)
-                        yield f"data: {json.dumps(message)}\n\n"
-                    except queue.Empty:
-                        # Send keepalive
-                        yield f": keepalive\n\n"
-            finally:
-                event_manager.unsubscribe(q)
+        if not log_file_path:
+            return jsonify({"error": "No log file configured"}), 400
 
-        return Response(
-            generate(),
-            mimetype="text/event-stream",
-            headers={
-                "Cache-Control": "no-cache",
-                "Connection": "keep-alive",
-                "X-Accel-Buffering": "no",
-            },
-        )
+        path = Path(log_file_path)
+        if not path.exists():
+            return jsonify({"error": f"Log file not found: {log_file_path}"}), 404
+
+        # Create a new parser and re-parse the file
+        new_parser = LogParser()
+        new_parser.parse_file(log_file_path)
+
+        # Replace the parser in app config
+        app.config["parser"] = new_parser
+
+        return jsonify({
+            "success": True,
+            "lines_processed": new_parser.lines_processed,
+            "attempts": len(new_parser.get_session().attempts),
+        })
 
     @app.route("/api/session")
     def get_session():
@@ -294,62 +240,24 @@ def register_routes(app: Flask) -> None:
         })
 
 
-def broadcast_state_change(state: ParserState) -> None:
-    """Broadcast a state change event."""
-    event_manager.broadcast("state_change", {"state": state.value})
-
-
-def broadcast_attempt_complete(attempt: FightAttempt) -> None:
-    """Broadcast an attempt completion event."""
-    event_manager.broadcast("attempt_complete", {
-        "attempt_number": attempt.attempt_number,
-        "outcome": attempt.outcome.value,
-        "boss_name": attempt.boss_name,
-        "duration_seconds": attempt.duration_seconds,
-        "total_deaths": len(attempt.deaths),
-    })
-
-
-def broadcast_new_data() -> None:
-    """Broadcast that new data is available (generic refresh signal)."""
-    event_manager.broadcast("data_update", {})
-
-
-def run_server(parser: LogParser, host: str = "0.0.0.0", port: int = 8080, debug: bool = False) -> None:
+def run_server(
+    parser: LogParser,
+    log_file_path: str,
+    host: str = "0.0.0.0",
+    port: int = 8080,
+    debug: bool = False
+) -> None:
     """Run the Flask development server.
 
     Args:
         parser: LogParser instance with parsed data
+        log_file_path: Path to the log file for refresh functionality
         host: Host to bind to
         port: Port to listen on
         debug: Enable debug mode
     """
-    app = create_app(parser)
+    app = create_app(parser, log_file_path)
     print(f"Starting web dashboard at http://localhost:{port}")
+    print(f"Monitoring log file: {log_file_path}")
+    print("Use the Refresh button in the dashboard to reload data")
     app.run(host=host, port=port, debug=debug, threaded=True)
-
-
-def run_server_background(parser: LogParser, host: str = "0.0.0.0", port: int = 8080) -> threading.Thread:
-    """Run the Flask server in a background thread.
-
-    Args:
-        parser: LogParser instance with parsed data
-        host: Host to bind to
-        port: Port to listen on
-
-    Returns:
-        The thread running the server
-    """
-    app = create_app(parser)
-
-    def run():
-        # Suppress Flask's default logging for cleaner output
-        import logging
-        log = logging.getLogger('werkzeug')
-        log.setLevel(logging.WARNING)
-
-        app.run(host=host, port=port, debug=False, threaded=True, use_reloader=False)
-
-    thread = threading.Thread(target=run, daemon=True)
-    thread.start()
-    return thread
