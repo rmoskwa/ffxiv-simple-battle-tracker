@@ -1,0 +1,7 @@
+.venv
+rubicante.log
+logGuide.md
+__pychache__/
+*.pyc
+.DS_Store
+.claude/

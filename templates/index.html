@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FFXIV Battle Tracker</title>
+    <link rel="stylesheet" href="/static/css/styles.css">
+</head>
+<body>
+    <header>
+        <h1>FFXIV Battle Tracker</h1>
+        <div id="session-info">
+            <span id="zone-name">Loading...</span>
+            <span id="boss-name"></span>
+            <span id="parser-state" class="state-badge">-</span>
+        </div>
+        <div id="header-actions">
+            <button id="export-btn" class="header-btn" title="Export to JSON (Ctrl+E)">Export JSON</button>
+        </div>
+    </header>
+
+    <main>
+        <aside id="sidebar">
+            <section id="summary-section">
+                <h2>Session Summary</h2>
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <span class="stat-value" id="total-attempts">0</span>
+                        <span class="stat-label">Attempts</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-value" id="total-wipes">0</span>
+                        <span class="stat-label">Wipes</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-value" id="total-victories">0</span>
+                        <span class="stat-label">Victories</span>
+                    </div>
+                </div>
+                <div id="extended-stats">
+                    <div class="stat-row">
+                        <span class="stat-name">Total Damage Taken</span>
+                        <span class="stat-value-inline" id="total-damage">0</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-name">Total Deaths</span>
+                        <span class="stat-value-inline" id="total-deaths">0</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-name">Avg Attempt Duration</span>
+                        <span class="stat-value-inline" id="avg-duration">0s</span>
+                    </div>
+                </div>
+            </section>
+
+            <section id="attempts-section">
+                <h2>Attempts</h2>
+                <div id="attempts-list"></div>
+            </section>
+
+            <section id="deaths-summary-section">
+                <h2>Deaths by Player</h2>
+                <div id="deaths-summary-list"></div>
+            </section>
+        </aside>
+
+        <section id="content">
+            <div id="attempt-header">
+                <h2>Select an attempt</h2>
+                <div id="attempt-meta"></div>
+            </div>
+
+            <div id="filters">
+                <div class="filter-group search-group">
+                    <label for="search-filter">Search:</label>
+                    <input type="text" id="search-filter" placeholder="Filter by name... (Ctrl+F)">
+                </div>
+                <div class="filter-group">
+                    <label for="player-filter">Player:</label>
+                    <select id="player-filter">
+                        <option value="">All Players</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label for="ability-filter">Ability:</label>
+                    <select id="ability-filter">
+                        <option value="">All Abilities</option>
+                    </select>
+                </div>
+                <button id="clear-filters" class="filter-btn" title="Clear all filters">Clear</button>
+            </div>
+
+            <div id="tabs">
+                <button class="tab-btn active" data-tab="abilities" title="Press 1">Ability Hits</button>
+                <button class="tab-btn" data-tab="debuffs" title="Press 2">Debuffs</button>
+                <button class="tab-btn" data-tab="deaths" title="Press 3">Deaths</button>
+                <button class="tab-btn" data-tab="timeline" title="Press 4">Timeline</button>
+            </div>
+
+            <div id="tab-content">
+                <div id="abilities-tab" class="tab-panel active">
+                    <table id="abilities-table">
+                        <thead>
+                            <tr>
+                                <th class="sortable" data-sort="time">Time</th>
+                                <th class="sortable" data-sort="ability">Ability</th>
+                                <th class="sortable" data-sort="target">Target</th>
+                                <th class="sortable" data-sort="damage">Damage</th>
+                                <th>Crit</th>
+                                <th>DH</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                    <div id="abilities-summary" class="table-summary"></div>
+                </div>
+
+                <div id="debuffs-tab" class="tab-panel">
+                    <table id="debuffs-table">
+                        <thead>
+                            <tr>
+                                <th>Time</th>
+                                <th>Debuff</th>
+                                <th>Target</th>
+                                <th>Duration</th>
+                                <th>Stacks</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                    <div id="debuffs-summary" class="table-summary"></div>
+                </div>
+
+                <div id="deaths-tab" class="tab-panel">
+                    <table id="deaths-table">
+                        <thead>
+                            <tr>
+                                <th>Time</th>
+                                <th>Player</th>
+                                <th>Killed By</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+
+                <div id="timeline-tab" class="tab-panel">
+                    <div id="timeline-container">
+                        <div id="timeline-header">
+                            <span>Fight Timeline</span>
+                            <span id="timeline-duration"></span>
+                        </div>
+                        <div id="timeline-content"></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <p>FFXIV Battle Tracker - Parsing ACT logs for raid analysis</p>
+        <p class="shortcuts-hint">Shortcuts: 1-4 Tabs | Ctrl+F Search | Ctrl+E Export | Esc Clear</p>
+    </footer>
+
+    <script src="/static/js/dashboard.js"></script>
+</body>
+</html>
