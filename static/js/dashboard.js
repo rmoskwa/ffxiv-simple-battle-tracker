@@ -817,41 +817,70 @@ function renderTimeline(data) {
     // Sort by relative time
     events.sort((a, b) => a.relative_time - b.relative_time);
 
-    // Limit to last 50 events for performance
-    const displayEvents = events.slice(-50);
+    // Group events with same type and name within 5 seconds
+    const groupedEvents = groupTimelineEvents(events, 5);
 
     elements.timelineContent.innerHTML = '';
 
-    if (displayEvents.length === 0) {
+    if (groupedEvents.length === 0) {
         elements.timelineContent.innerHTML = '<div class="empty-state">No events</div>';
         return;
     }
 
-    displayEvents.forEach(event => {
+    groupedEvents.forEach(group => {
         const div = document.createElement('div');
-        div.className = `timeline-event ${event.type}`;
+        div.className = `timeline-event ${group.type}`;
 
         let icon, details, valueStr;
-        switch (event.type) {
+        const uniqueCount = group.displayTargets.length;
+        const targetList = group.displayTargets.join(', ');
+
+        switch (group.type) {
             case 'ability':
                 icon = 'A';
-                details = `<strong>${event.name}</strong> hit ${event.target}`;
-                valueStr = event.value.toLocaleString() + ' dmg';
+                if (group.isMultiRound) {
+                    // Multi-round: same players hit multiple times
+                    const roundsBadge = `<span class="event-count">x${group.rounds}</span>`;
+                    details = `<strong>${group.name}</strong> ${roundsBadge} across ${uniqueCount} players`;
+                    valueStr = group.totalValue.toLocaleString() + ' dmg';
+                } else if (group.count > 1) {
+                    // Single round hitting multiple targets
+                    details = `<strong>${group.name}</strong> hit ${targetList}`;
+                    valueStr = group.totalValue.toLocaleString() + ' dmg';
+                } else {
+                    // Single hit
+                    details = `<strong>${group.name}</strong> hit ${targetList}`;
+                    valueStr = group.totalValue.toLocaleString() + ' dmg';
+                }
                 break;
             case 'death':
                 icon = 'D';
-                details = `<strong>${event.name}</strong> killed by ${event.target}`;
+                if (group.isMultiRound) {
+                    const roundsBadge = `<span class="event-count">x${group.rounds}</span>`;
+                    details = `${uniqueCount} players ${roundsBadge} killed by <strong>${group.name}</strong>`;
+                } else if (group.count > 1) {
+                    details = `<strong>${targetList}</strong> killed by ${group.name}`;
+                } else {
+                    details = `<strong>${targetList}</strong> killed by ${group.name}`;
+                }
                 valueStr = '';
                 break;
             case 'debuff':
                 icon = 'B';
-                details = `<strong>${event.name}</strong> on ${event.target}`;
-                valueStr = event.value ? event.value.toFixed(1) + 's' : '';
+                if (group.isMultiRound) {
+                    const roundsBadge = `<span class="event-count">x${group.rounds}</span>`;
+                    details = `<strong>${group.name}</strong> ${roundsBadge} across ${uniqueCount} players`;
+                } else if (group.count > 1) {
+                    details = `<strong>${group.name}</strong> on ${targetList}`;
+                } else {
+                    details = `<strong>${group.name}</strong> on ${targetList}`;
+                }
+                valueStr = group.avgValue ? group.avgValue.toFixed(1) + 's' : '';
                 break;
         }
 
         div.innerHTML = `
-            <span class="time">${formatRelativeTime(event.relative_time)}</span>
+            <span class="time">${formatRelativeTime(group.relative_time)}</span>
             <span class="event-icon">${icon}</span>
             <span class="event-details">${details}</span>
             <span class="event-value">${valueStr}</span>
@@ -859,6 +888,86 @@ function renderTimeline(data) {
 
         elements.timelineContent.appendChild(div);
     });
+}
+
+// Group timeline events with same type and name within a time window
+function groupTimelineEvents(events, windowSeconds) {
+    if (events.length === 0) return [];
+
+    const groups = [];
+    let currentGroup = null;
+
+    events.forEach(event => {
+        // For deaths, we group by the killer (source), not the victim
+        const groupKey = event.type === 'death' ? event.target : event.name;
+
+        // Check if this event can be added to the current group
+        const canGroup = currentGroup &&
+            currentGroup.type === event.type &&
+            currentGroup.groupKey === groupKey &&
+            (event.relative_time - currentGroup.relative_time) <= windowSeconds;
+
+        if (canGroup) {
+            // Add to current group
+            currentGroup.count++;
+            const targetName = event.type === 'death' ? event.name : event.target;
+            currentGroup.allTargets.push(targetName);
+            currentGroup.uniqueTargets.add(targetName);
+            if (event.value !== null) {
+                currentGroup.totalValue += event.value;
+            }
+        } else {
+            // Finalize current group and start new one
+            if (currentGroup) {
+                finalizeGroup(currentGroup);
+                groups.push(currentGroup);
+            }
+
+            const targetName = event.type === 'death' ? event.name : event.target;
+            currentGroup = {
+                type: event.type,
+                name: event.type === 'death' ? event.target : event.name,
+                groupKey: groupKey,
+                relative_time: event.relative_time,
+                count: 1,
+                allTargets: [targetName],
+                uniqueTargets: new Set([targetName]),
+                totalValue: event.value || 0,
+                avgValue: 0,
+                // These will be set by finalizeGroup
+                displayTargets: [],
+                rounds: 1,
+                isMultiRound: false,
+            };
+        }
+    });
+
+    // Don't forget the last group
+    if (currentGroup) {
+        finalizeGroup(currentGroup);
+        groups.push(currentGroup);
+    }
+
+    return groups;
+}
+
+// Finalize a group by calculating display properties
+function finalizeGroup(group) {
+    group.avgValue = group.count > 0 ? group.totalValue / group.count : 0;
+
+    const uniqueCount = group.uniqueTargets.size;
+    const totalCount = group.count;
+
+    // Check if this is a multi-round pattern (same players hit multiple times)
+    if (totalCount > uniqueCount && totalCount % uniqueCount === 0) {
+        group.rounds = totalCount / uniqueCount;
+        group.isMultiRound = true;
+        group.displayTargets = Array.from(group.uniqueTargets);
+    } else {
+        group.rounds = 1;
+        group.isMultiRound = false;
+        group.displayTargets = Array.from(group.uniqueTargets);
+    }
 }
 
 // Render deaths summary
