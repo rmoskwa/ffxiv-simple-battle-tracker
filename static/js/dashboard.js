@@ -291,8 +291,8 @@ function clearAllFilters() {
 }
 
 function applyFilters() {
-    if (currentAttempt) {
-        loadAttemptDetails(currentAttempt);
+    if (currentFight && currentAttempt) {
+        loadAttemptDetails(currentFight, currentAttempt);
     }
 }
 
