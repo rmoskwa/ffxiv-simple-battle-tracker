@@ -92,6 +92,12 @@
                         <option value="">All Abilities</option>
                     </select>
                 </div>
+                <div class="filter-group">
+                    <label for="debuff-filter">Debuff:</label>
+                    <select id="debuff-filter">
+                        <option value="">All Debuffs</option>
+                    </select>
+                </div>
                 <button id="clear-filters" class="filter-btn" title="Clear all filters">Clear</button>
             </div>
 
@@ -102,6 +108,7 @@
                     <button class="tab-btn" data-tab="deaths" title="Press 3">Deaths</button>
                     <button class="tab-btn" data-tab="timeline" title="Press 4">Timeline</button>
                     <button class="tab-btn" data-tab="breakdown" title="Press 5">Ability Breakdown</button>
+                    <button class="tab-btn" data-tab="debuff-breakdown" title="Press 6">Debuff Breakdown</button>
                 </div>
                 <div class="tabs-right">
                     <label class="checkbox-label">
@@ -185,13 +192,31 @@
                         </div>
                     </div>
                 </div>
+
+                <div id="debuff-breakdown-tab" class="tab-panel">
+                    <div id="debuff-breakdown-container">
+                        <div id="debuff-breakdown-prompt" class="empty-state">
+                            <p>Select a specific debuff from the dropdown to see breakdown across attempts</p>
+                        </div>
+                        <div id="debuff-breakdown-content" style="display: none;">
+                            <div id="debuff-breakdown-header">
+                                <span>Debuff: </span>
+                                <span id="debuff-breakdown-name"></span>
+                            </div>
+                            <table id="debuff-breakdown-table">
+                                <thead></thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
             </div>
         </section>
     </main>
 
     <footer>
         <p>FFXIV Battle Tracker - Parsing ACT logs for raid analysis</p>
-        <p class="shortcuts-hint">Shortcuts: 1-5 Tabs | Ctrl+R Refresh | Ctrl+F Search | Ctrl+E Export | Esc Clear</p>
+        <p class="shortcuts-hint">Shortcuts: 1-6 Tabs | Ctrl+R Refresh | Ctrl+F Search | Ctrl+E Export | Esc Clear</p>
     </footer>
 
     <script src="/static/js/dashboard.js"></script>

@@ -32,6 +32,7 @@ const elements = {
     searchFilter: document.getElementById('search-filter'),
     playerFilter: document.getElementById('player-filter'),
     abilityFilter: document.getElementById('ability-filter'),
+    debuffFilter: document.getElementById('debuff-filter'),
     clearFilters: document.getElementById('clear-filters'),
     showUnknownFilter: document.getElementById('show-unknown-filter'),
     refreshBtn: document.getElementById('refresh-btn'),
@@ -48,6 +49,11 @@ const elements = {
     breakdownAbilityName: document.getElementById('breakdown-ability-name'),
     breakdownTableHead: document.querySelector('#breakdown-table thead'),
     breakdownTableBody: document.querySelector('#breakdown-table tbody'),
+    debuffBreakdownPrompt: document.getElementById('debuff-breakdown-prompt'),
+    debuffBreakdownContent: document.getElementById('debuff-breakdown-content'),
+    debuffBreakdownName: document.getElementById('debuff-breakdown-name'),
+    debuffBreakdownTableHead: document.querySelector('#debuff-breakdown-table thead'),
+    debuffBreakdownTableBody: document.querySelector('#debuff-breakdown-table tbody'),
 };
 
 // Initialize
@@ -77,8 +83,8 @@ function initKeyboardShortcuts() {
         }
 
         // Tab switching with number keys
-        if (e.key >= '1' && e.key <= '5') {
-            const tabs = ['abilities', 'debuffs', 'deaths', 'timeline', 'breakdown'];
+        if (e.key >= '1' && e.key <= '6') {
+            const tabs = ['abilities', 'debuffs', 'deaths', 'timeline', 'breakdown', 'debuff-breakdown'];
             const tabIndex = parseInt(e.key) - 1;
             if (tabs[tabIndex]) {
                 switchTab(tabs[tabIndex]);
@@ -282,6 +288,7 @@ function initTabs() {
 function initFilters() {
     elements.playerFilter.addEventListener('change', applyFilters);
     elements.abilityFilter.addEventListener('change', applyFilters);
+    elements.debuffFilter.addEventListener('change', applyFilters);
     elements.searchFilter.addEventListener('input', debounce(applyFilters, 300));
     elements.showUnknownFilter.addEventListener('change', applyFilters);
     elements.clearFilters.addEventListener('click', clearAllFilters);
@@ -291,6 +298,7 @@ function clearAllFilters() {
     elements.searchFilter.value = '';
     elements.playerFilter.value = '';
     elements.abilityFilter.value = '';
+    elements.debuffFilter.value = '';
     elements.showUnknownFilter.checked = false;
     applyFilters();
 }
@@ -551,20 +559,23 @@ async function loadAttemptDetails(fightId, attemptNumber) {
     elements.attemptHeader.textContent = `Attempt #${data.attempt_number} - ${data.outcome.toUpperCase()}`;
     elements.attemptMeta.textContent = `${zoneName} - ${data.boss_name} - ${formatDuration(data.duration_seconds)} - ${formatTime(data.start_time)}`;
 
-    // Populate ability filter
+    // Populate ability and debuff filters
     populateAbilityFilter(data.ability_hits);
+    populateDebuffFilter(data.debuffs_applied);
 
     // Get filters
     const searchFilter = elements.searchFilter.value.toLowerCase();
     const playerFilter = elements.playerFilter.value;
     const abilityFilter = elements.abilityFilter.value;
+    const debuffFilter = elements.debuffFilter.value;
     const showUnknown = elements.showUnknownFilter.checked;
 
     renderAbilitiesTable(data.ability_hits, playerFilter, abilityFilter, searchFilter, showUnknown);
-    renderDebuffsTable(data.debuffs_applied, playerFilter, searchFilter, showUnknown);
+    renderDebuffsTable(data.debuffs_applied, playerFilter, debuffFilter, searchFilter, showUnknown);
     renderDeathsTable(data.deaths, searchFilter);
     renderTimeline(data, showUnknown);
     renderAbilityBreakdown(abilityFilter);
+    renderDebuffBreakdown(debuffFilter);
 }
 
 // Populate player filter
@@ -597,6 +608,23 @@ function populateAbilityFilter(abilities) {
     });
 
     elements.abilityFilter.value = currentValue;
+}
+
+// Populate debuff filter
+function populateDebuffFilter(debuffs) {
+    const currentValue = elements.debuffFilter.value;
+    const uniqueDebuffs = [...new Set(debuffs.map(d => d.effect_name))].sort();
+
+    elements.debuffFilter.innerHTML = '<option value="">All Debuffs</option>';
+
+    uniqueDebuffs.forEach(name => {
+        const option = document.createElement('option');
+        option.value = name;
+        option.textContent = name;
+        elements.debuffFilter.appendChild(option);
+    });
+
+    elements.debuffFilter.value = currentValue;
 }
 
 // Render abilities table with sorting
@@ -702,7 +730,7 @@ function renderAbilitiesSummary(abilities) {
 }
 
 // Render debuffs table
-function renderDebuffsTable(debuffs, playerFilter, searchFilter = '', showUnknown = false) {
+function renderDebuffsTable(debuffs, playerFilter, debuffFilter, searchFilter = '', showUnknown = false) {
     let filtered = debuffs;
 
     // Filter out unknown debuffs unless showUnknown is checked
@@ -712,6 +740,9 @@ function renderDebuffsTable(debuffs, playerFilter, searchFilter = '', showUnknow
 
     if (playerFilter) {
         filtered = filtered.filter(d => d.target_name === playerFilter);
+    }
+    if (debuffFilter) {
+        filtered = filtered.filter(d => d.effect_name === debuffFilter);
     }
     if (searchFilter) {
         filtered = filtered.filter(d =>
@@ -1095,6 +1126,99 @@ async function renderAbilityBreakdown(selectedAbility) {
     bodyHtml += `<td class="total-cell grand-total">${grandTotal}</td></tr>`;
 
     elements.breakdownTableBody.innerHTML = bodyHtml;
+}
+
+// Render debuff breakdown across all attempts
+async function renderDebuffBreakdown(selectedDebuff) {
+    // If no specific debuff selected, show prompt
+    if (!selectedDebuff || !currentFight) {
+        elements.debuffBreakdownPrompt.style.display = 'block';
+        elements.debuffBreakdownContent.style.display = 'none';
+        return;
+    }
+
+    // Show content, hide prompt
+    elements.debuffBreakdownPrompt.style.display = 'none';
+    elements.debuffBreakdownContent.style.display = 'block';
+    elements.debuffBreakdownName.textContent = selectedDebuff;
+
+    // Fetch fight data to get all attempts
+    const fightData = await fetchAPI(`/api/fights/${currentFight}`);
+    if (!fightData || !fightData.attempts) {
+        elements.debuffBreakdownTableBody.innerHTML = '<tr><td colspan="100%" class="empty-state">No data available</td></tr>';
+        return;
+    }
+
+    // Collect all unique players across all attempts
+    const allPlayers = new Set();
+    const attemptData = [];
+
+    fightData.attempts.forEach(attempt => {
+        const debuffsByPlayer = {};
+
+        attempt.debuffs_applied.forEach(debuff => {
+            if (debuff.effect_name === selectedDebuff) {
+                allPlayers.add(debuff.target_name);
+                debuffsByPlayer[debuff.target_name] = (debuffsByPlayer[debuff.target_name] || 0) + 1;
+            }
+        });
+
+        attemptData.push({
+            attemptNumber: attempt.attempt_number,
+            outcome: attempt.outcome,
+            debuffsByPlayer: debuffsByPlayer
+        });
+    });
+
+    const playerList = Array.from(allPlayers).sort();
+
+    // If no applications found for this debuff
+    if (playerList.length === 0) {
+        elements.debuffBreakdownTableHead.innerHTML = '';
+        elements.debuffBreakdownTableBody.innerHTML = '<tr><td class="empty-state">No applications recorded for this debuff</td></tr>';
+        return;
+    }
+
+    // Build header row
+    let headerHtml = '<tr><th>Attempt</th>';
+    playerList.forEach(player => {
+        headerHtml += `<th>${player}</th>`;
+    });
+    headerHtml += '<th>Total</th></tr>';
+    elements.debuffBreakdownTableHead.innerHTML = headerHtml;
+
+    // Build data rows
+    let bodyHtml = '';
+    attemptData.forEach(attempt => {
+        const outcomeClass = attempt.outcome === 'victory' ? 'victory' : (attempt.outcome === 'wipe' ? 'wipe' : '');
+        bodyHtml += `<tr>`;
+        bodyHtml += `<td class="attempt-cell ${outcomeClass}">#${attempt.attemptNumber}</td>`;
+
+        let rowTotal = 0;
+        playerList.forEach(player => {
+            const count = attempt.debuffsByPlayer[player] || 0;
+            rowTotal += count;
+            bodyHtml += `<td class="count-cell ${count > 0 ? 'has-hits' : ''}">${count || ''}</td>`;
+        });
+
+        bodyHtml += `<td class="total-cell">${rowTotal || ''}</td>`;
+        bodyHtml += '</tr>';
+    });
+
+    // Add totals row
+    bodyHtml += '<tr class="totals-row"><td><strong>Total</strong></td>';
+    let grandTotal = 0;
+    playerList.forEach(player => {
+        let playerTotal = 0;
+        attemptData.forEach(attempt => {
+            playerTotal += attempt.debuffsByPlayer[player] || 0;
+        });
+        grandTotal += playerTotal;
+        bodyHtml += `<td class="total-cell">${playerTotal || ''}</td>`;
+    });
+    bodyHtml += `<td class="total-cell grand-total">${grandTotal}</td></tr>`;
+
+    elements.debuffBreakdownTableBody.innerHTML = bodyHtml;
 }
 
 // Render deaths summary

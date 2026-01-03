@@ -679,13 +679,15 @@ tbody tr:hover {
 }
 
 /* Ability Breakdown */
-#breakdown-container {
+#breakdown-container,
+#debuff-breakdown-container {
     background: var(--bg-secondary);
     border-radius: 4px;
     padding: 1rem;
 }
 
-#breakdown-header {
+#breakdown-header,
+#debuff-breakdown-header {
     margin-bottom: 1rem;
     padding-bottom: 0.5rem;
     border-bottom: 1px solid var(--border-color);
@@ -696,38 +698,50 @@ tbody tr:hover {
     color: var(--accent-primary);
 }
 
-#breakdown-table {
+#debuff-breakdown-name {
+    color: var(--warning);
+}
+
+#breakdown-table,
+#debuff-breakdown-table {
     width: 100%;
     border-collapse: collapse;
 }
 
 #breakdown-table th,
-#breakdown-table td {
+#breakdown-table td,
+#debuff-breakdown-table th,
+#debuff-breakdown-table td {
     padding: 0.5rem 0.75rem;
     text-align: center;
     border: 1px solid var(--border-color);
 }
 
-#breakdown-table th {
+#breakdown-table th,
+#debuff-breakdown-table th {
     background: var(--bg-tertiary);
     font-weight: 600;
     font-size: 0.8rem;
 }
 
-#breakdown-table th:first-child {
+#breakdown-table th:first-child,
+#debuff-breakdown-table th:first-child {
     text-align: left;
 }
 
-#breakdown-table .attempt-cell {
+#breakdown-table .attempt-cell,
+#debuff-breakdown-table .attempt-cell {
     text-align: left;
     font-weight: 500;
 }
 
-#breakdown-table .attempt-cell.wipe {
+#breakdown-table .attempt-cell.wipe,
+#debuff-breakdown-table .attempt-cell.wipe {
     color: var(--danger);
 }
 
-#breakdown-table .attempt-cell.victory {
+#breakdown-table .attempt-cell.victory,
+#debuff-breakdown-table .attempt-cell.victory {
     color: var(--success);
 }
 
@@ -737,21 +751,34 @@ tbody tr:hover {
     font-weight: 600;
 }
 
-#breakdown-table .total-cell {
+#debuff-breakdown-table .count-cell.has-hits {
+    background: rgba(255, 152, 0, 0.15);
+    color: var(--warning);
+    font-weight: 600;
+}
+
+#breakdown-table .total-cell,
+#debuff-breakdown-table .total-cell {
     font-weight: 600;
     color: var(--text-secondary);
 }
 
-#breakdown-table .totals-row {
+#breakdown-table .totals-row,
+#debuff-breakdown-table .totals-row {
     background: var(--bg-tertiary);
 }
 
-#breakdown-table .totals-row td {
+#breakdown-table .totals-row td,
+#debuff-breakdown-table .totals-row td {
     border-top: 2px solid var(--border-color);
 }
 
 #breakdown-table .grand-total {
     color: var(--accent-primary);
+}
+
+#debuff-breakdown-table .grand-total {
+    color: var(--warning);
 }
 
 /* Sortable columns */
