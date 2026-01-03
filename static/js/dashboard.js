@@ -33,6 +33,7 @@ const elements = {
     playerFilter: document.getElementById('player-filter'),
     abilityFilter: document.getElementById('ability-filter'),
     clearFilters: document.getElementById('clear-filters'),
+    showUnknownFilter: document.getElementById('show-unknown-filter'),
     refreshBtn: document.getElementById('refresh-btn'),
     exportBtn: document.getElementById('export-btn'),
     abilitiesTable: document.querySelector('#abilities-table tbody'),
@@ -277,6 +278,7 @@ function initFilters() {
     elements.playerFilter.addEventListener('change', applyFilters);
     elements.abilityFilter.addEventListener('change', applyFilters);
     elements.searchFilter.addEventListener('input', debounce(applyFilters, 300));
+    elements.showUnknownFilter.addEventListener('change', applyFilters);
     elements.clearFilters.addEventListener('click', clearAllFilters);
 }
 
@@ -284,6 +286,7 @@ function clearAllFilters() {
     elements.searchFilter.value = '';
     elements.playerFilter.value = '';
     elements.abilityFilter.value = '';
+    elements.showUnknownFilter.checked = false;
     applyFilters();
 }
 
@@ -550,11 +553,12 @@ async function loadAttemptDetails(fightId, attemptNumber) {
     const searchFilter = elements.searchFilter.value.toLowerCase();
     const playerFilter = elements.playerFilter.value;
     const abilityFilter = elements.abilityFilter.value;
+    const showUnknown = elements.showUnknownFilter.checked;
 
-    renderAbilitiesTable(data.ability_hits, playerFilter, abilityFilter, searchFilter);
-    renderDebuffsTable(data.debuffs_applied, playerFilter, searchFilter);
+    renderAbilitiesTable(data.ability_hits, playerFilter, abilityFilter, searchFilter, showUnknown);
+    renderDebuffsTable(data.debuffs_applied, playerFilter, searchFilter, showUnknown);
     renderDeathsTable(data.deaths, searchFilter);
-    renderTimeline(data);
+    renderTimeline(data, showUnknown);
 }
 
 // Populate player filter
@@ -590,8 +594,13 @@ function populateAbilityFilter(abilities) {
 }
 
 // Render abilities table with sorting
-function renderAbilitiesTable(abilities, playerFilter, abilityFilter, searchFilter = '') {
+function renderAbilitiesTable(abilities, playerFilter, abilityFilter, searchFilter = '', showUnknown = false) {
     let filtered = abilities;
+
+    // Filter out unknown abilities unless showUnknown is checked
+    if (!showUnknown) {
+        filtered = filtered.filter(a => !a.ability_name.toLowerCase().includes('unknown'));
+    }
 
     if (playerFilter) {
         filtered = filtered.filter(a => a.target_name === playerFilter);
@@ -687,8 +696,13 @@ function renderAbilitiesSummary(abilities) {
 }
 
 // Render debuffs table
-function renderDebuffsTable(debuffs, playerFilter, searchFilter = '') {
+function renderDebuffsTable(debuffs, playerFilter, searchFilter = '', showUnknown = false) {
     let filtered = debuffs;
+
+    // Filter out unknown debuffs unless showUnknown is checked
+    if (!showUnknown) {
+        filtered = filtered.filter(d => !d.effect_name.toLowerCase().includes('unknown'));
+    }
 
     if (playerFilter) {
         filtered = filtered.filter(d => d.target_name === playerFilter);
@@ -778,13 +792,18 @@ function renderDeathsTable(deaths, searchFilter = '') {
 }
 
 // Render timeline
-function renderTimeline(data) {
+function renderTimeline(data, showUnknown = false) {
     elements.timelineDuration.textContent = formatDuration(data.duration_seconds);
 
     // Combine all events and sort by relative time
     const events = [];
 
-    data.ability_hits.forEach(a => {
+    // Filter abilities
+    let abilities = data.ability_hits;
+    if (!showUnknown) {
+        abilities = abilities.filter(a => !a.ability_name.toLowerCase().includes('unknown'));
+    }
+    abilities.forEach(a => {
         events.push({
             type: 'ability',
             relative_time: a.relative_time_seconds,
@@ -794,6 +813,7 @@ function renderTimeline(data) {
         });
     });
 
+    // Deaths are always shown
     data.deaths.forEach(d => {
         events.push({
             type: 'death',
@@ -804,7 +824,12 @@ function renderTimeline(data) {
         });
     });
 
-    data.debuffs_applied.forEach(d => {
+    // Filter debuffs
+    let debuffs = data.debuffs_applied;
+    if (!showUnknown) {
+        debuffs = debuffs.filter(d => !d.effect_name.toLowerCase().includes('unknown'));
+    }
+    debuffs.forEach(d => {
         events.push({
             type: 'debuff',
             relative_time: d.relative_time_seconds,

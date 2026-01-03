@@ -442,12 +442,43 @@ main {
     border-color: var(--accent-primary);
 }
 
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    cursor: pointer;
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+}
+
+.checkbox-label input[type="checkbox"] {
+    width: 14px;
+    height: 14px;
+    margin: 0;
+    accent-color: var(--accent-primary);
+    cursor: pointer;
+}
+
+.checkbox-label:hover {
+    color: var(--text-primary);
+}
+
 /* Tabs */
 #tabs {
     display: flex;
-    gap: 0.25rem;
+    justify-content: space-between;
+    align-items: center;
     margin-bottom: 1rem;
     border-bottom: 1px solid var(--border-color);
+}
+
+.tabs-left {
+    display: flex;
+    gap: 0.25rem;
+}
+
+.tabs-right {
+    padding-right: 0.5rem;
 }
 
 .tab-btn {
