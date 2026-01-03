@@ -11,6 +11,32 @@ from ..models.data_models import AbilityHit, DebuffApplied, Player, PlayerDeath
 from .damage_calc import calculate_damage, is_damage_action, parse_flags
 
 
+# Known player pet names - these have IDs starting with "40" but are player-controlled
+# and should be excluded from boss debuff tracking
+PLAYER_PET_NAMES = {
+    # Scholar pets
+    "eos",
+    "selene",
+    "seraph",
+    # Astrologian
+    "earthly star",
+    # Summoner pets
+    "carbuncle",
+    "emerald carbuncle",
+    "topaz carbuncle",
+    "ruby carbuncle",
+    "ifrit-egi",
+    "titan-egi",
+    "garuda-egi",
+    "demi-bahamut",
+    "demi-phoenix",
+    "solar bahamut",
+    # Machinist
+    "automaton queen",
+    "rook autoturret",
+}
+
+
 @dataclass
 class ZoneChangeData:
     """Data extracted from a zone change line (Line 01)."""
@@ -188,6 +214,10 @@ class LineHandlers:
         if not target_name:
             return None
 
+        # Skip auto-attacks (not relevant for tracking major boss mechanics)
+        if ability_name.lower() == "attack":
+            return None
+
         # Parse damage and flags
         damage = calculate_damage(damage_raw)
         damage_type, is_damage, is_critical, is_direct_hit, _ = parse_flags(flags)
@@ -209,6 +239,35 @@ class LineHandlers:
             is_critical=is_critical,
             is_direct_hit=is_direct_hit,
         )
+
+    @staticmethod
+    def parse_player_damage_timestamp(fields: list) -> Optional[datetime]:
+        """Check if this is a player->boss damage ability and return timestamp.
+
+        Used to detect the first player damage to start the fight timeline.
+
+        Args:
+            fields: List of pipe-separated fields from Line 21/22
+
+        Returns:
+            Timestamp if this is player->boss damage, None otherwise
+        """
+        if len(fields) < 10:
+            return None
+
+        source_id = fields[2]
+        target_id = fields[6]
+        flags = fields[8]
+
+        # Only process player -> enemy abilities
+        if not is_player_id(source_id) or not is_enemy_id(target_id):
+            return None
+
+        # Check if it actually dealt damage
+        if not is_damage_action(flags):
+            return None
+
+        return parse_timestamp(fields[1])
 
     @staticmethod
     def parse_line_25_death(fields: list) -> Optional[PlayerDeath]:
@@ -269,6 +328,10 @@ class LineHandlers:
 
         # Only process enemy -> player debuffs
         if not is_enemy_id(source_id) or not is_player_id(target_id):
+            return None
+
+        # Skip player pets (they have "40" IDs but are player-controlled)
+        if source_name.lower() in PLAYER_PET_NAMES:
             return None
 
         # Skip if no effect name

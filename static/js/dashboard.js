@@ -3,25 +3,29 @@
  */
 
 // State
+let currentFight = null;
 let currentAttempt = null;
 let sessionData = null;
+let fightsData = null;
 let attemptData = null;
 let isRefreshing = false;
 let sortColumn = null;
 let sortDirection = 'asc';
+let expandedFights = new Set();
 
 // DOM Elements
 const elements = {
     zoneName: document.getElementById('zone-name'),
     bossName: document.getElementById('boss-name'),
     parserState: document.getElementById('parser-state'),
+    totalFights: document.getElementById('total-fights'),
     totalAttempts: document.getElementById('total-attempts'),
     totalWipes: document.getElementById('total-wipes'),
     totalVictories: document.getElementById('total-victories'),
     totalDamage: document.getElementById('total-damage'),
     totalDeaths: document.getElementById('total-deaths'),
     avgDuration: document.getElementById('avg-duration'),
-    attemptsList: document.getElementById('attempts-list'),
+    fightsList: document.getElementById('fights-list'),
     deathsSummaryList: document.getElementById('deaths-summary-list'),
     attemptHeader: document.querySelector('#attempt-header h2'),
     attemptMeta: document.getElementById('attempt-meta'),
@@ -50,7 +54,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initRefresh();
     loadSession();
     loadSummary();
-    loadAttempts();
+    loadFights();
     loadState();
 });
 
@@ -106,18 +110,38 @@ function initKeyboardShortcuts() {
 }
 
 function navigateAttempts(direction) {
-    if (!sessionData || !sessionData.attempts) return;
+    if (!fightsData || fightsData.length === 0) return;
+    if (!currentFight) return;
 
-    const attempts = sessionData.attempts;
-    if (attempts.length === 0) return;
+    // Find current fight
+    const fightIndex = fightsData.findIndex(f => f.fight_id === currentFight);
+    if (fightIndex === -1) return;
 
-    const currentIndex = attempts.findIndex(a => a.attempt_number === currentAttempt);
-    let newIndex = currentIndex + direction;
+    const currentFightData = fightsData[fightIndex];
+    const totalAttempts = currentFightData.total_attempts;
 
-    if (newIndex < 0) newIndex = attempts.length - 1;
-    if (newIndex >= attempts.length) newIndex = 0;
+    if (totalAttempts === 0) return;
 
-    selectAttempt(attempts[newIndex].attempt_number);
+    let newAttempt = currentAttempt + direction;
+
+    // Navigate within current fight
+    if (newAttempt >= 1 && newAttempt <= totalAttempts) {
+        selectAttempt(currentFight, newAttempt);
+    } else if (newAttempt < 1 && fightIndex > 0) {
+        // Go to previous fight's last attempt
+        const prevFight = fightsData[fightIndex - 1];
+        expandedFights.add(prevFight.fight_id);
+        selectAttempt(prevFight.fight_id, prevFight.total_attempts);
+        renderFightsList(fightsData);
+    } else if (newAttempt > totalAttempts && fightIndex < fightsData.length - 1) {
+        // Go to next fight's first attempt
+        const nextFight = fightsData[fightIndex + 1];
+        if (nextFight.total_attempts > 0) {
+            expandedFights.add(nextFight.fight_id);
+            selectAttempt(nextFight.fight_id, 1);
+            renderFightsList(fightsData);
+        }
+    }
 }
 
 function switchTab(tabName) {
@@ -205,14 +229,14 @@ async function refreshData() {
             // Reload all data
             await loadSession();
             await loadSummary();
-            await loadAttempts();
+            await loadFights();
             await loadState();
 
-            if (currentAttempt) {
-                await loadAttemptDetails(currentAttempt);
+            if (currentFight && currentAttempt) {
+                await loadAttemptDetails(currentFight, currentAttempt);
             }
 
-            showNotification(`Refreshed: ${data.lines_processed.toLocaleString()} lines, ${data.attempts} attempts`);
+            showNotification(`Refreshed: ${data.lines_processed.toLocaleString()} lines, ${data.fights} fights, ${data.attempts} attempts`);
         } else {
             showNotification(data.error || 'Refresh failed');
         }
@@ -310,6 +334,7 @@ async function loadSummary() {
     const data = await fetchAPI('/api/summary');
     if (!data) return;
 
+    elements.totalFights.textContent = data.total_fights || 0;
     elements.totalAttempts.textContent = data.total_attempts;
     elements.totalWipes.textContent = data.total_wipes;
     elements.totalVictories.textContent = data.total_victories;
@@ -318,22 +343,28 @@ async function loadSummary() {
     const totalDeaths = Object.values(data.deaths_by_player).reduce((a, b) => a + b, 0);
     elements.totalDeaths.textContent = totalDeaths;
 
-    // Load attempts for duration and damage calculation
-    const attemptsData = await fetchAPI('/api/attempts');
-    if (attemptsData && attemptsData.attempts.length > 0) {
-        const attempts = attemptsData.attempts;
-        const totalDuration = attempts.reduce((sum, a) => sum + (a.duration_seconds || 0), 0);
-        const avgDuration = totalDuration / attempts.length;
-        elements.avgDuration.textContent = formatDuration(avgDuration);
-
-        // Calculate total damage from all attempts
+    // Load fights for duration and damage calculation
+    const fightsDataResp = await fetchAPI('/api/fights');
+    if (fightsDataResp && fightsDataResp.fights.length > 0) {
+        let totalDuration = 0;
+        let totalAttempts = 0;
         let totalDamage = 0;
-        for (const attempt of attempts) {
-            const details = await fetchAPI(`/api/attempts/${attempt.attempt_number}`);
-            if (details && details.ability_hits) {
-                totalDamage += details.ability_hits.reduce((sum, h) => sum + h.damage, 0);
+
+        for (const fight of fightsDataResp.fights) {
+            const fightDetails = await fetchAPI(`/api/fights/${fight.fight_id}`);
+            if (fightDetails && fightDetails.attempts) {
+                for (const attempt of fightDetails.attempts) {
+                    totalDuration += attempt.duration_seconds || 0;
+                    totalAttempts++;
+                    if (attempt.ability_hits) {
+                        totalDamage += attempt.ability_hits.reduce((sum, h) => sum + h.damage, 0);
+                    }
+                }
             }
         }
+
+        const avgDuration = totalAttempts > 0 ? totalDuration / totalAttempts : 0;
+        elements.avgDuration.textContent = formatDuration(avgDuration);
         elements.totalDamage.textContent = totalDamage.toLocaleString();
     }
 
@@ -349,33 +380,111 @@ async function loadState() {
     elements.parserState.className = `state-badge ${data.state}`;
 }
 
-// Load attempts list
-async function loadAttempts() {
-    const data = await fetchAPI('/api/attempts');
+// Load fights list
+async function loadFights() {
+    const data = await fetchAPI('/api/fights');
     if (!data) return;
 
-    sessionData = { ...sessionData, attempts: data.attempts };
-    renderAttemptsList(data.attempts);
+    fightsData = data.fights;
+    renderFightsList(data.fights);
 
-    if (data.attempts.length > 0 && !currentAttempt) {
-        const lastAttempt = data.attempts[data.attempts.length - 1];
-        selectAttempt(lastAttempt.attempt_number);
+    // Auto-select first attempt of last fight if nothing selected
+    if (data.fights.length > 0 && !currentAttempt) {
+        const lastFight = data.fights[data.fights.length - 1];
+        if (lastFight.total_attempts > 0) {
+            expandedFights.add(lastFight.fight_id);
+            selectAttempt(lastFight.fight_id, 1);
+        }
     }
 }
 
-// Render attempts list
-function renderAttemptsList(attempts) {
-    elements.attemptsList.innerHTML = '';
+// Render fights list with nested attempts
+function renderFightsList(fights) {
+    elements.fightsList.innerHTML = '';
 
-    if (attempts.length === 0) {
-        elements.attemptsList.innerHTML = '<div class="empty-state"><p>No attempts recorded</p></div>';
+    if (fights.length === 0) {
+        elements.fightsList.innerHTML = '<div class="empty-state"><p>No fights recorded</p></div>';
         return;
     }
 
-    attempts.forEach(attempt => {
+    fights.forEach(fight => {
+        const fightItem = document.createElement('div');
+        fightItem.className = 'fight-item';
+        fightItem.dataset.fightId = fight.fight_id;
+
+        if (expandedFights.has(fight.fight_id)) {
+            fightItem.classList.add('expanded');
+        }
+
+        // Fight header
+        const header = document.createElement('div');
+        header.className = 'fight-header';
+        header.innerHTML = `
+            <div class="fight-info">
+                <div class="fight-zone">${fight.zone_name}</div>
+                <div class="fight-boss">${fight.boss_name}</div>
+            </div>
+            <div class="fight-stats">
+                <span class="fight-stat">${fight.total_attempts} attempts</span>
+                <span class="fight-stat">${fight.total_deaths} deaths</span>
+            </div>
+            <span class="fight-toggle">▼</span>
+        `;
+
+        header.addEventListener('click', () => toggleFight(fight.fight_id));
+        fightItem.appendChild(header);
+
+        // Attempts list (hidden by default unless expanded)
+        const attemptsList = document.createElement('div');
+        attemptsList.className = 'attempts-list';
+        attemptsList.style.display = expandedFights.has(fight.fight_id) ? 'flex' : 'none';
+
+        // Load attempts for this fight
+        loadFightAttempts(fight.fight_id, attemptsList);
+
+        fightItem.appendChild(attemptsList);
+        elements.fightsList.appendChild(fightItem);
+    });
+}
+
+// Toggle fight expansion
+function toggleFight(fightId) {
+    const fightItem = document.querySelector(`.fight-item[data-fight-id="${fightId}"]`);
+    const attemptsList = fightItem.querySelector('.attempts-list');
+
+    if (expandedFights.has(fightId)) {
+        expandedFights.delete(fightId);
+        fightItem.classList.remove('expanded');
+        attemptsList.style.display = 'none';
+    } else {
+        expandedFights.add(fightId);
+        fightItem.classList.add('expanded');
+        attemptsList.style.display = 'flex';
+        loadFightAttempts(fightId, attemptsList);
+    }
+}
+
+// Load attempts for a specific fight
+async function loadFightAttempts(fightId, container) {
+    const data = await fetchAPI(`/api/fights/${fightId}/attempts`);
+    if (!data) return;
+
+    container.innerHTML = '';
+
+    if (data.attempts.length === 0) {
+        container.innerHTML = '<div class="empty-state"><p>No attempts</p></div>';
+        return;
+    }
+
+    data.attempts.forEach(attempt => {
         const item = document.createElement('div');
         item.className = 'attempt-item';
+        item.dataset.fightId = fightId;
         item.dataset.attemptNumber = attempt.attempt_number;
+
+        if (currentFight === fightId && currentAttempt === attempt.attempt_number) {
+            item.classList.add('selected');
+        }
 
         const duration = formatDuration(attempt.duration_seconds);
         const time = formatTime(attempt.start_time);
@@ -390,39 +499,49 @@ function renderAttemptsList(attempts) {
             </div>
         `;
 
-        item.addEventListener('click', () => selectAttempt(attempt.attempt_number));
-        elements.attemptsList.appendChild(item);
-    });
-
-    // Update selected state
-    if (currentAttempt) {
-        document.querySelectorAll('.attempt-item').forEach(item => {
-            item.classList.toggle('selected', parseInt(item.dataset.attemptNumber) === currentAttempt);
+        item.addEventListener('click', (e) => {
+            e.stopPropagation();
+            selectAttempt(fightId, attempt.attempt_number);
         });
-    }
+        container.appendChild(item);
+    });
 }
 
 // Select an attempt
-function selectAttempt(attemptNumber) {
+function selectAttempt(fightId, attemptNumber) {
+    currentFight = fightId;
     currentAttempt = attemptNumber;
 
+    // Clear all selections
     document.querySelectorAll('.attempt-item').forEach(item => {
-        item.classList.toggle('selected', parseInt(item.dataset.attemptNumber) === attemptNumber);
+        item.classList.remove('selected');
     });
 
-    loadAttemptDetails(attemptNumber);
+    // Select the current attempt
+    const selectedItem = document.querySelector(
+        `.attempt-item[data-fight-id="${fightId}"][data-attempt-number="${attemptNumber}"]`
+    );
+    if (selectedItem) {
+        selectedItem.classList.add('selected');
+    }
+
+    loadAttemptDetails(fightId, attemptNumber);
 }
 
 // Load attempt details
-async function loadAttemptDetails(attemptNumber) {
-    const data = await fetchAPI(`/api/attempts/${attemptNumber}`);
+async function loadAttemptDetails(fightId, attemptNumber) {
+    const data = await fetchAPI(`/api/fights/${fightId}/attempts/${attemptNumber}`);
     if (!data) return;
 
     attemptData = data;
 
+    // Find the fight to get zone name
+    const fight = fightsData?.find(f => f.fight_id === fightId);
+    const zoneName = fight ? fight.zone_name : '';
+
     // Update header
     elements.attemptHeader.textContent = `Attempt #${data.attempt_number} - ${data.outcome.toUpperCase()}`;
-    elements.attemptMeta.textContent = `${data.boss_name} - ${formatDuration(data.duration_seconds)} - ${formatTime(data.start_time)}`;
+    elements.attemptMeta.textContent = `${zoneName} - ${data.boss_name} - ${formatDuration(data.duration_seconds)} - ${formatTime(data.start_time)}`;
 
     // Populate ability filter
     populateAbilityFilter(data.ability_hits);
@@ -493,8 +612,8 @@ function renderAbilitiesTable(abilities, playerFilter, abilityFilter, searchFilt
             let valA, valB;
             switch (sortColumn) {
                 case 'time':
-                    valA = new Date(a.timestamp);
-                    valB = new Date(b.timestamp);
+                    valA = a.relative_time_seconds;
+                    valB = b.relative_time_seconds;
                     break;
                 case 'ability':
                     valA = a.ability_name.toLowerCase();
@@ -528,7 +647,7 @@ function renderAbilitiesTable(abilities, playerFilter, abilityFilter, searchFilt
     filtered.forEach(ability => {
         const row = document.createElement('tr');
         row.innerHTML = `
-            <td>${formatTime(ability.timestamp)}</td>
+            <td>${formatRelativeTime(ability.relative_time_seconds)}</td>
             <td>${ability.ability_name}</td>
             <td>${ability.target_name}</td>
             <td class="damage-value">${ability.damage.toLocaleString()}</td>
@@ -592,7 +711,7 @@ function renderDebuffsTable(debuffs, playerFilter, searchFilter = '') {
     filtered.forEach(debuff => {
         const row = document.createElement('tr');
         row.innerHTML = `
-            <td>${formatTime(debuff.timestamp)}</td>
+            <td>${formatRelativeTime(debuff.relative_time_seconds)}</td>
             <td>${debuff.effect_name}</td>
             <td>${debuff.target_name}</td>
             <td>${debuff.duration.toFixed(1)}s</td>
@@ -650,7 +769,7 @@ function renderDeathsTable(deaths, searchFilter = '') {
     filtered.forEach(death => {
         const row = document.createElement('tr');
         row.innerHTML = `
-            <td>${formatTime(death.timestamp)}</td>
+            <td>${formatRelativeTime(death.relative_time_seconds)}</td>
             <td>${death.player_name}</td>
             <td>${death.source_name || '(unknown)'}</td>
         `;
@@ -662,13 +781,13 @@ function renderDeathsTable(deaths, searchFilter = '') {
 function renderTimeline(data) {
     elements.timelineDuration.textContent = formatDuration(data.duration_seconds);
 
-    // Combine all events and sort by time
+    // Combine all events and sort by relative time
     const events = [];
 
     data.ability_hits.forEach(a => {
         events.push({
             type: 'ability',
-            timestamp: a.timestamp,
+            relative_time: a.relative_time_seconds,
             name: a.ability_name,
             target: a.target_name,
             value: a.damage,
@@ -678,7 +797,7 @@ function renderTimeline(data) {
     data.deaths.forEach(d => {
         events.push({
             type: 'death',
-            timestamp: d.timestamp,
+            relative_time: d.relative_time_seconds,
             name: d.player_name,
             target: d.source_name || 'unknown',
             value: null,
@@ -688,15 +807,15 @@ function renderTimeline(data) {
     data.debuffs_applied.forEach(d => {
         events.push({
             type: 'debuff',
-            timestamp: d.timestamp,
+            relative_time: d.relative_time_seconds,
             name: d.effect_name,
             target: d.target_name,
             value: d.duration,
         });
     });
 
-    // Sort by timestamp
-    events.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+    // Sort by relative time
+    events.sort((a, b) => a.relative_time - b.relative_time);
 
     // Limit to last 50 events for performance
     const displayEvents = events.slice(-50);
@@ -732,7 +851,7 @@ function renderTimeline(data) {
         }
 
         div.innerHTML = `
-            <span class="time">${formatTime(event.timestamp)}</span>
+            <span class="time">${formatRelativeTime(event.relative_time)}</span>
             <span class="event-icon">${icon}</span>
             <span class="event-details">${details}</span>
             <span class="event-value">${valueStr}</span>
@@ -768,6 +887,14 @@ function renderDeathsSummary(deathsByPlayer) {
 function formatTime(isoString) {
     const date = new Date(isoString);
     return date.toLocaleTimeString('en-US', { hour12: false });
+}
+
+function formatRelativeTime(seconds) {
+    // Format relative time as MM:SS (fight time from 00:00)
+    if (seconds === undefined || seconds === null) return '00:00';
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
 }
 
 function formatDuration(seconds) {

@@ -5,12 +5,29 @@ from typing import Callable, List, Optional
 
 from ..models.data_models import (
     AttemptOutcome,
+    Fight,
     FightAttempt,
     ParserState,
     Player,
     RaidSession,
 )
 from .line_handlers import LineHandlers
+
+
+# Known non-combat zones (cities, housing, etc.) - these don't create Fight entries
+NON_COMBAT_ZONES = {
+    "solution nine",
+    "limsa lominsa",
+    "ul'dah",
+    "gridania",
+    "ishgard",
+    "kugane",
+    "crystarium",
+    "eulmore",
+    "old sharlayan",
+    "radz-at-han",
+    "tuliyollal",
+}
 
 
 class LogParser:
@@ -96,15 +113,26 @@ class LogParser:
         if not data:
             return
 
-        # Update session zone info
-        self.session.zone_id = data.zone_id
-        self.session.zone_name = data.zone_name
-        self.session.start_time = data.timestamp
+        # Set session start time on first zone change
+        if self.session.start_time is None:
+            self.session.start_time = data.timestamp
+
+        # Clear players on zone change
         self.session.players.clear()
         self._boss_detected = False
 
-        # Transition to IN_INSTANCE
-        self._change_state(ParserState.IN_INSTANCE)
+        # Check if this is a combat zone (instances, trials, raids)
+        zone_name_lower = data.zone_name.lower()
+        is_combat_zone = zone_name_lower not in NON_COMBAT_ZONES
+
+        if is_combat_zone:
+            # Create a new Fight for this zone
+            self.session.start_new_fight(data.zone_id, data.zone_name, data.timestamp)
+            # Transition to IN_INSTANCE
+            self._change_state(ParserState.IN_INSTANCE)
+        else:
+            # Non-combat zone, return to IDLE
+            self._change_state(ParserState.IDLE)
 
     def _handle_add_combatant(self, fields: list) -> None:
         """Handle AddCombatant (Line 03)."""
@@ -123,13 +151,21 @@ class LogParser:
         if self.state != ParserState.IN_COMBAT:
             return
 
+        # Check for first player->boss damage (to set timeline start)
+        if self.session.current_attempt and not self.session.current_attempt.first_damage_time:
+            player_damage_time = self.handlers.parse_player_damage_timestamp(fields)
+            if player_damage_time:
+                self.session.current_attempt.first_damage_time = player_damage_time
+
         ability = self.handlers.parse_line_21_22_ability(fields)
         if not ability:
             return
 
         # Detect boss from first enemy ability
         if not self._boss_detected and ability.source_name:
-            self.session.boss_name = ability.source_name
+            # Set boss name on current fight and attempt
+            if self.session.current_fight:
+                self.session.current_fight.boss_name = ability.source_name
             self._boss_detected = True
             if self.session.current_attempt:
                 self.session.current_attempt.boss_name = ability.source_name
@@ -214,8 +250,14 @@ class LogParser:
     def _start_new_attempt(self, start_time: datetime) -> None:
         """Start a new fight attempt."""
         self._boss_detected = False
+        # Ensure we have a current fight (create one if needed from IDLE state)
+        if not self.session.current_fight:
+            # This shouldn't normally happen, but handle gracefully
+            self.session.start_new_fight("unknown", "Unknown Zone", start_time)
         attempt = self.session.start_new_attempt(start_time)
-        attempt.boss_name = self.session.boss_name
+        # Inherit boss name from fight if already detected
+        if self.session.current_fight and self.session.current_fight.boss_name:
+            attempt.boss_name = self.session.current_fight.boss_name
 
     def _finalize_attempt(self, end_time: datetime, outcome: AttemptOutcome) -> None:
         """Finalize the current attempt."""

@@ -70,10 +70,12 @@ def register_routes(app: Flask) -> None:
         # Replace the parser in app config
         app.config["parser"] = new_parser
 
+        session = new_parser.get_session()
         return jsonify({
             "success": True,
             "lines_processed": new_parser.lines_processed,
-            "attempts": len(new_parser.get_session().attempts),
+            "fights": len(session.fights),
+            "attempts": len(session.attempts),
         })
 
     @app.route("/api/session")
@@ -82,6 +84,91 @@ def register_routes(app: Flask) -> None:
         parser: LogParser = app.config["parser"]
         session = parser.get_session()
         return jsonify(session.to_dict())
+
+    @app.route("/api/fights")
+    def get_fights():
+        """Get list of all fights with summaries."""
+        parser: LogParser = app.config["parser"]
+        session = parser.get_session()
+
+        fights_summary = []
+        for fight in session.fights:
+            fights_summary.append({
+                "fight_id": fight.fight_id,
+                "zone_id": fight.zone_id,
+                "zone_name": fight.zone_name,
+                "boss_name": fight.boss_name or "(Unknown Boss)",
+                "start_time": fight.start_time.isoformat() if fight.start_time else None,
+                "total_attempts": len(fight.attempts),
+                "total_wipes": fight.total_wipes,
+                "total_victories": fight.total_victories,
+                "total_deaths": fight.total_deaths,
+            })
+
+        return jsonify({
+            "fights": fights_summary,
+            "total": len(fights_summary),
+        })
+
+    @app.route("/api/fights/<int:fight_id>")
+    def get_fight(fight_id: int):
+        """Get detailed data for a specific fight."""
+        parser: LogParser = app.config["parser"]
+        session = parser.get_session()
+
+        # Find the fight
+        for fight in session.fights:
+            if fight.fight_id == fight_id:
+                return jsonify(fight.to_dict())
+
+        return jsonify({"error": "Fight not found"}), 404
+
+    @app.route("/api/fights/<int:fight_id>/attempts")
+    def get_fight_attempts(fight_id: int):
+        """Get list of attempts for a specific fight."""
+        parser: LogParser = app.config["parser"]
+        session = parser.get_session()
+
+        # Find the fight
+        for fight in session.fights:
+            if fight.fight_id == fight_id:
+                attempts_summary = []
+                for attempt in fight.attempts:
+                    attempts_summary.append({
+                        "attempt_number": attempt.attempt_number,
+                        "outcome": attempt.outcome.value,
+                        "boss_name": attempt.boss_name,
+                        "duration_seconds": attempt.duration_seconds,
+                        "start_time": attempt.start_time.isoformat(),
+                        "end_time": attempt.end_time.isoformat() if attempt.end_time else None,
+                        "total_hits": len(attempt.ability_hits),
+                        "total_debuffs": len(attempt.debuffs_applied),
+                        "total_deaths": len(attempt.deaths),
+                    })
+                return jsonify({
+                    "fight_id": fight_id,
+                    "attempts": attempts_summary,
+                    "total": len(attempts_summary),
+                })
+
+        return jsonify({"error": "Fight not found"}), 404
+
+    @app.route("/api/fights/<int:fight_id>/attempts/<int:attempt_num>")
+    def get_fight_attempt(fight_id: int, attempt_num: int):
+        """Get detailed data for a specific attempt in a fight."""
+        parser: LogParser = app.config["parser"]
+        session = parser.get_session()
+
+        # Find the fight
+        for fight in session.fights:
+            if fight.fight_id == fight_id:
+                # Find the attempt
+                for attempt in fight.attempts:
+                    if attempt.attempt_number == attempt_num:
+                        return jsonify(attempt.to_dict())
+                return jsonify({"error": "Attempt not found"}), 404
+
+        return jsonify({"error": "Fight not found"}), 404
 
     @app.route("/api/state")
     def get_state():
@@ -221,6 +308,7 @@ def register_routes(app: Flask) -> None:
         return jsonify({
             "zone_name": session.zone_name,
             "boss_name": session.boss_name,
+            "total_fights": stats.get("total_fights", len(session.fights)),
             "total_attempts": stats["total_attempts"],
             "total_wipes": stats["total_wipes"],
             "total_victories": stats["total_victories"],
