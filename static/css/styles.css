@@ -105,30 +105,6 @@ header h1 {
     padding: 0.5rem;
 }
 
-.state-badge {
-    padding: 0.25rem 0.75rem;
-    border-radius: 4px;
-    font-size: 0.75rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    background: var(--bg-tertiary);
-}
-
-.state-badge.in_combat {
-    background: var(--danger);
-    color: white;
-}
-
-.state-badge.in_instance {
-    background: var(--success);
-    color: white;
-}
-
-.state-badge.wipe_pending {
-    background: var(--warning);
-    color: black;
-}
-
 /* Main Layout */
 main {
     display: flex;
@@ -922,23 +898,6 @@ footer {
 .notification-toast.show {
     opacity: 1;
     transform: translateX(0);
-}
-
-/* Live indicator */
-.state-badge.connected::after {
-    content: '';
-    display: inline-block;
-    width: 8px;
-    height: 8px;
-    background: #4caf50;
-    border-radius: 50%;
-    margin-left: 6px;
-    animation: pulse 2s infinite;
-}
-
-@keyframes pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.5; }
 }
 
 /* Responsive */

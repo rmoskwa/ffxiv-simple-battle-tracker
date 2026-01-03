@@ -18,7 +18,6 @@ let selectedFightId = null;  // The fight selected in the header dropdown
 // DOM Elements
 const elements = {
     fightSelector: document.getElementById('fight-selector'),
-    parserState: document.getElementById('parser-state'),
     totalFights: document.getElementById('total-fights'),
     totalAttempts: document.getElementById('total-attempts'),
     totalWipes: document.getElementById('total-wipes'),
@@ -37,7 +36,6 @@ const elements = {
     clearFilters: document.getElementById('clear-filters'),
     showUnknownFilter: document.getElementById('show-unknown-filter'),
     refreshBtn: document.getElementById('refresh-btn'),
-    exportBtn: document.getElementById('export-btn'),
     abilitiesTable: document.querySelector('#abilities-table tbody'),
     debuffsTable: document.querySelector('#debuffs-table tbody'),
     deathsTable: document.querySelector('#deaths-table tbody'),
@@ -63,12 +61,10 @@ document.addEventListener('DOMContentLoaded', () => {
     initFilters();
     initKeyboardShortcuts();
     initSorting();
-    initExport();
     initRefresh();
     initFightSelector();
     loadSession();
     loadFights();
-    loadState();
 });
 
 // Fight selector initialization
@@ -133,12 +129,6 @@ function initKeyboardShortcuts() {
         if (e.ctrlKey && e.key === 'f') {
             e.preventDefault();
             elements.searchFilter.focus();
-        }
-
-        // Ctrl+E for export
-        if (e.ctrlKey && e.key === 'e') {
-            e.preventDefault();
-            exportData();
         }
 
         // Escape to clear filters
@@ -215,36 +205,6 @@ function initSorting() {
     });
 }
 
-// Export functionality
-function initExport() {
-    elements.exportBtn.addEventListener('click', exportData);
-}
-
-async function exportData() {
-    try {
-        const data = await fetchAPI('/api/session');
-        if (!data) {
-            showNotification('Export failed - no data');
-            return;
-        }
-
-        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `ffxiv-battle-tracker-${new Date().toISOString().split('T')[0]}.json`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-
-        showNotification('Data exported successfully');
-    } catch (error) {
-        console.error('Export failed:', error);
-        showNotification('Export failed');
-    }
-}
-
 // Manual refresh functionality
 function initRefresh() {
     elements.refreshBtn.addEventListener('click', refreshData);
@@ -270,7 +230,6 @@ async function refreshData() {
             // Reload all data
             await loadSession();
             await loadFights();  // This also calls loadSummary()
-            await loadState();
 
             // Try to restore selection, or re-select if fight still exists
             if (prevCurrentFight && prevCurrentAttempt) {
@@ -462,15 +421,6 @@ async function loadSummary() {
 
         renderDeathsSummary(data.deaths_by_player);
     }
-}
-
-// Load parser state
-async function loadState() {
-    const data = await fetchAPI('/api/state');
-    if (!data) return;
-
-    elements.parserState.textContent = data.state;
-    elements.parserState.className = `state-badge ${data.state}`;
 }
 
 // Load fights list
