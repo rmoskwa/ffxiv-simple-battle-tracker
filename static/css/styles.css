@@ -75,13 +75,34 @@ header h1 {
     background: #d63850;
 }
 
-#zone-name, #boss-name {
-    color: var(--text-secondary);
+#fight-selector {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    min-width: 300px;
+    max-width: 500px;
 }
 
-#boss-name {
-    font-weight: 600;
+#fight-selector:hover {
+    background: var(--bg-secondary);
+    border-color: var(--accent-primary);
+}
+
+#fight-selector:focus {
+    outline: none;
+    border-color: var(--accent-primary);
+    box-shadow: 0 0 0 2px rgba(233, 69, 96, 0.2);
+}
+
+#fight-selector option {
+    background: var(--bg-secondary);
     color: var(--text-primary);
+    padding: 0.5rem;
 }
 
 .state-badge {

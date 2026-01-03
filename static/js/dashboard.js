@@ -8,15 +8,16 @@ let currentAttempt = null;
 let sessionData = null;
 let fightsData = null;
 let attemptData = null;
+let currentFightData = null;  // Cached data for the currently selected fight (includes players)
 let isRefreshing = false;
 let sortColumn = null;
 let sortDirection = 'asc';
 let expandedFights = new Set();
+let selectedFightId = null;  // The fight selected in the header dropdown
 
 // DOM Elements
 const elements = {
-    zoneName: document.getElementById('zone-name'),
-    bossName: document.getElementById('boss-name'),
+    fightSelector: document.getElementById('fight-selector'),
     parserState: document.getElementById('parser-state'),
     totalFights: document.getElementById('total-fights'),
     totalAttempts: document.getElementById('total-attempts'),
@@ -64,11 +65,42 @@ document.addEventListener('DOMContentLoaded', () => {
     initSorting();
     initExport();
     initRefresh();
+    initFightSelector();
     loadSession();
-    loadSummary();
     loadFights();
     loadState();
 });
+
+// Fight selector initialization
+function initFightSelector() {
+    elements.fightSelector.addEventListener('change', () => {
+        const value = elements.fightSelector.value;
+        selectedFightId = value ? parseInt(value) : null;
+
+        // Clear current selection
+        currentFight = null;
+        currentAttempt = null;
+        expandedFights.clear();
+
+        // Re-render the fights list for the selected fight
+        if (fightsData) {
+            renderFightsList(fightsData);
+
+            // Auto-select first attempt of the selected fight
+            if (selectedFightId) {
+                const selectedFight = fightsData.find(f => f.fight_id === selectedFightId);
+                if (selectedFight && selectedFight.total_attempts > 0) {
+                    expandedFights.add(selectedFight.fight_id);
+                    selectAttempt(selectedFight.fight_id, 1);
+                    renderFightsList(fightsData);
+                }
+            }
+        }
+
+        // Update summary for selected fight
+        loadSummary();
+    });
+}
 
 // Keyboard shortcuts
 function initKeyboardShortcuts() {
@@ -136,23 +168,15 @@ function navigateAttempts(direction) {
 
     let newAttempt = currentAttempt + direction;
 
-    // Navigate within current fight
+    // Navigate within current fight only (since we have a fight selector now)
     if (newAttempt >= 1 && newAttempt <= totalAttempts) {
         selectAttempt(currentFight, newAttempt);
-    } else if (newAttempt < 1 && fightIndex > 0) {
-        // Go to previous fight's last attempt
-        const prevFight = fightsData[fightIndex - 1];
-        expandedFights.add(prevFight.fight_id);
-        selectAttempt(prevFight.fight_id, prevFight.total_attempts);
-        renderFightsList(fightsData);
-    } else if (newAttempt > totalAttempts && fightIndex < fightsData.length - 1) {
-        // Go to next fight's first attempt
-        const nextFight = fightsData[fightIndex + 1];
-        if (nextFight.total_attempts > 0) {
-            expandedFights.add(nextFight.fight_id);
-            selectAttempt(nextFight.fight_id, 1);
-            renderFightsList(fightsData);
-        }
+    }
+    // Wrap around within the selected fight
+    else if (newAttempt < 1) {
+        selectAttempt(currentFight, totalAttempts);
+    } else if (newAttempt > totalAttempts) {
+        selectAttempt(currentFight, 1);
     }
 }
 
@@ -238,14 +262,23 @@ async function refreshData() {
         const data = await response.json();
 
         if (response.ok && data.success) {
+            // Save current selection to restore after refresh
+            const prevSelectedFight = selectedFightId;
+            const prevCurrentFight = currentFight;
+            const prevCurrentAttempt = currentAttempt;
+
             // Reload all data
             await loadSession();
-            await loadSummary();
-            await loadFights();
+            await loadFights();  // This also calls loadSummary()
             await loadState();
 
-            if (currentFight && currentAttempt) {
-                await loadAttemptDetails(currentFight, currentAttempt);
+            // Try to restore selection, or re-select if fight still exists
+            if (prevCurrentFight && prevCurrentAttempt) {
+                // Check if the fight still exists
+                const fightExists = fightsData && fightsData.some(f => f.fight_id === prevCurrentFight);
+                if (fightExists) {
+                    await loadAttemptDetails(prevCurrentFight, prevCurrentAttempt);
+                }
             }
 
             showNotification(`Refreshed: ${data.lines_processed.toLocaleString()} lines, ${data.fights} fights, ${data.attempts} attempts`);
@@ -339,52 +372,96 @@ async function loadSession() {
     if (!data) return;
 
     sessionData = data;
-    elements.zoneName.textContent = data.zone_name || 'No zone';
-    elements.bossName.textContent = data.boss_name ? `- ${data.boss_name}` : '';
-
     populatePlayerFilter(data.players);
 }
 
 // Load summary with extended stats
 async function loadSummary() {
-    const data = await fetchAPI('/api/summary');
-    if (!data) return;
+    // If a specific fight is selected, load stats for that fight only
+    if (selectedFightId) {
+        const fightData = await fetchAPI(`/api/fights/${selectedFightId}`);
+        if (!fightData) return;
 
-    elements.totalFights.textContent = data.total_fights || 0;
-    elements.totalAttempts.textContent = data.total_attempts;
-    elements.totalWipes.textContent = data.total_wipes;
-    elements.totalVictories.textContent = data.total_victories;
+        // Cache fight data for job lookups in breakdown tables
+        currentFightData = fightData;
 
-    // Calculate extended stats
-    const totalDeaths = Object.values(data.deaths_by_player).reduce((a, b) => a + b, 0);
-    elements.totalDeaths.textContent = totalDeaths;
+        // Update player filter to show only players from this fight
+        populatePlayerFilterFromFight(fightData);
 
-    // Load fights for duration and damage calculation
-    const fightsDataResp = await fetchAPI('/api/fights');
-    if (fightsDataResp && fightsDataResp.fights.length > 0) {
+        elements.totalFights.textContent = 1;
+        elements.totalAttempts.textContent = fightData.total_attempts || 0;
+        elements.totalWipes.textContent = fightData.total_wipes || 0;
+        elements.totalVictories.textContent = fightData.total_victories || 0;
+
+        // Calculate stats from fight data
         let totalDuration = 0;
-        let totalAttempts = 0;
         let totalDamage = 0;
+        const deathsByPlayer = {};
 
-        for (const fight of fightsDataResp.fights) {
-            const fightDetails = await fetchAPI(`/api/fights/${fight.fight_id}`);
-            if (fightDetails && fightDetails.attempts) {
-                for (const attempt of fightDetails.attempts) {
-                    totalDuration += attempt.duration_seconds || 0;
-                    totalAttempts++;
-                    if (attempt.ability_hits) {
-                        totalDamage += attempt.ability_hits.reduce((sum, h) => sum + h.damage, 0);
+        if (fightData.attempts) {
+            for (const attempt of fightData.attempts) {
+                totalDuration += attempt.duration_seconds || 0;
+                if (attempt.ability_hits) {
+                    totalDamage += attempt.ability_hits.reduce((sum, h) => sum + h.damage, 0);
+                }
+                if (attempt.deaths) {
+                    for (const death of attempt.deaths) {
+                        deathsByPlayer[death.player_name] = (deathsByPlayer[death.player_name] || 0) + 1;
                     }
                 }
             }
         }
 
-        const avgDuration = totalAttempts > 0 ? totalDuration / totalAttempts : 0;
+        const totalDeaths = Object.values(deathsByPlayer).reduce((a, b) => a + b, 0);
+        elements.totalDeaths.textContent = totalDeaths;
+
+        const avgDuration = fightData.total_attempts > 0 ? totalDuration / fightData.total_attempts : 0;
         elements.avgDuration.textContent = formatDuration(avgDuration);
         elements.totalDamage.textContent = totalDamage.toLocaleString();
-    }
 
-    renderDeathsSummary(data.deaths_by_player);
+        renderDeathsSummary(deathsByPlayer);
+    } else {
+        // No fight selected - show overall summary
+        currentFightData = null;  // Clear cached fight data
+        const data = await fetchAPI('/api/summary');
+        if (!data) return;
+
+        elements.totalFights.textContent = data.total_fights || 0;
+        elements.totalAttempts.textContent = data.total_attempts;
+        elements.totalWipes.textContent = data.total_wipes;
+        elements.totalVictories.textContent = data.total_victories;
+
+        // Calculate extended stats
+        const totalDeaths = Object.values(data.deaths_by_player).reduce((a, b) => a + b, 0);
+        elements.totalDeaths.textContent = totalDeaths;
+
+        // Load fights for duration and damage calculation
+        const fightsDataResp = await fetchAPI('/api/fights');
+        if (fightsDataResp && fightsDataResp.fights.length > 0) {
+            let totalDuration = 0;
+            let totalAttempts = 0;
+            let totalDamage = 0;
+
+            for (const fight of fightsDataResp.fights) {
+                const fightDetails = await fetchAPI(`/api/fights/${fight.fight_id}`);
+                if (fightDetails && fightDetails.attempts) {
+                    for (const attempt of fightDetails.attempts) {
+                        totalDuration += attempt.duration_seconds || 0;
+                        totalAttempts++;
+                        if (attempt.ability_hits) {
+                            totalDamage += attempt.ability_hits.reduce((sum, h) => sum + h.damage, 0);
+                        }
+                    }
+                }
+            }
+
+            const avgDuration = totalAttempts > 0 ? totalDuration / totalAttempts : 0;
+            elements.avgDuration.textContent = formatDuration(avgDuration);
+            elements.totalDamage.textContent = totalDamage.toLocaleString();
+        }
+
+        renderDeathsSummary(data.deaths_by_player);
+    }
 }
 
 // Load parser state
@@ -402,15 +479,72 @@ async function loadFights() {
     if (!data) return;
 
     fightsData = data.fights;
+
+    // Populate the fight selector dropdown
+    populateFightSelector(data.fights);
+
+    // Check if current selectedFightId is still valid
+    const fightsWithAttempts = data.fights.filter(f => f.total_attempts > 0);
+    const selectedStillValid = selectedFightId && fightsWithAttempts.some(f => f.fight_id === selectedFightId);
+
+    if (!selectedStillValid && fightsWithAttempts.length > 0) {
+        // Auto-select last fight with attempts if nothing selected or selection invalid
+        const lastFight = fightsWithAttempts[fightsWithAttempts.length - 1];
+        selectedFightId = lastFight.fight_id;
+        elements.fightSelector.value = lastFight.fight_id;
+        expandedFights.clear();
+        expandedFights.add(lastFight.fight_id);
+        currentFight = lastFight.fight_id;
+        currentAttempt = 1;
+    } else if (selectedStillValid) {
+        // Ensure dropdown reflects current selection
+        elements.fightSelector.value = selectedFightId;
+    }
+
+    // Render the fights list
     renderFightsList(data.fights);
 
-    // Auto-select first attempt of last fight if nothing selected
-    if (data.fights.length > 0 && !currentAttempt) {
-        const lastFight = data.fights[data.fights.length - 1];
-        if (lastFight.total_attempts > 0) {
-            expandedFights.add(lastFight.fight_id);
-            selectAttempt(lastFight.fight_id, 1);
+    // Auto-select first attempt if we have a selected fight but no attempt selected
+    if (selectedFightId && !currentAttempt) {
+        const selectedFight = fightsWithAttempts.find(f => f.fight_id === selectedFightId);
+        if (selectedFight && selectedFight.total_attempts > 0) {
+            expandedFights.add(selectedFight.fight_id);
+            selectAttempt(selectedFight.fight_id, 1);
         }
+    }
+
+    // Update summary for selected fight
+    loadSummary();
+}
+
+// Populate the fight selector dropdown
+function populateFightSelector(fights) {
+    const currentValue = elements.fightSelector.value;
+
+    // Filter to only fights with attempts (actual boss encounters)
+    const fightsWithAttempts = fights.filter(f => f.total_attempts > 0);
+
+    elements.fightSelector.innerHTML = '';
+
+    if (fightsWithAttempts.length === 0) {
+        elements.fightSelector.innerHTML = '<option value="">No fights found</option>';
+        return;
+    }
+
+    fightsWithAttempts.forEach(fight => {
+        const option = document.createElement('option');
+        option.value = fight.fight_id;
+        // Show zone name and boss name (if different)
+        const bossText = fight.boss_name && fight.boss_name !== fight.zone_name
+            ? ` - ${fight.boss_name}`
+            : '';
+        option.textContent = `${fight.zone_name}${bossText} (${fight.total_attempts} attempts)`;
+        elements.fightSelector.appendChild(option);
+    });
+
+    // Restore selection if still valid
+    if (currentValue && fightsWithAttempts.some(f => f.fight_id === parseInt(currentValue))) {
+        elements.fightSelector.value = currentValue;
     }
 }
 
@@ -418,12 +552,21 @@ async function loadFights() {
 function renderFightsList(fights) {
     elements.fightsList.innerHTML = '';
 
-    if (fights.length === 0) {
+    // Filter to show only the selected fight if one is selected
+    let displayFights = fights;
+    if (selectedFightId) {
+        displayFights = fights.filter(f => f.fight_id === selectedFightId);
+    } else {
+        // If no fight selected, only show fights with attempts
+        displayFights = fights.filter(f => f.total_attempts > 0);
+    }
+
+    if (displayFights.length === 0) {
         elements.fightsList.innerHTML = '<div class="empty-state"><p>No fights recorded</p></div>';
         return;
     }
 
-    fights.forEach(fight => {
+    displayFights.forEach(fight => {
         const fightItem = document.createElement('div');
         fightItem.className = 'fight-item';
         fightItem.dataset.fightId = fight.fight_id;
@@ -600,6 +743,78 @@ function populatePlayerFilter(players) {
     });
 
     elements.playerFilter.value = currentValue;
+}
+
+// Populate player filter from fight data (only shows players who participated in the fight)
+function populatePlayerFilterFromFight(fightData) {
+    const currentValue = elements.playerFilter.value;
+    elements.playerFilter.innerHTML = '<option value="">All Players</option>';
+
+    // First, extract player names who actually participated (were hit, died, or got debuffs)
+    const participantNames = new Set();
+
+    if (fightData.attempts) {
+        for (const attempt of fightData.attempts) {
+            // Get players from ability hits (targets that are players - ID starts with "10")
+            if (attempt.ability_hits) {
+                for (const hit of attempt.ability_hits) {
+                    if (hit.target_id && hit.target_id.startsWith('10') && hit.target_name) {
+                        participantNames.add(hit.target_name);
+                    }
+                }
+            }
+            // Get players from deaths
+            if (attempt.deaths) {
+                for (const death of attempt.deaths) {
+                    if (death.player_name) {
+                        participantNames.add(death.player_name);
+                    }
+                }
+            }
+            // Get players from debuffs
+            if (attempt.debuffs_applied) {
+                for (const debuff of attempt.debuffs_applied) {
+                    if (debuff.target_id && debuff.target_id.startsWith('10') && debuff.target_name) {
+                        participantNames.add(debuff.target_name);
+                    }
+                }
+            }
+        }
+    }
+
+    // Now build player list with job info from fightData.players (if available)
+    const participants = [];
+    for (const name of participantNames) {
+        // Look up player in fight's player data to get job info
+        let jobName = '';
+        if (fightData.players) {
+            const playerEntry = Object.values(fightData.players).find(p => p.name === name);
+            if (playerEntry) {
+                jobName = playerEntry.job_name || '';
+            }
+        }
+        participants.push({ name, job_name: jobName });
+    }
+
+    // Sort by job name then player name
+    participants.sort((a, b) => {
+        const jobCompare = (a.job_name || '').localeCompare(b.job_name || '');
+        if (jobCompare !== 0) return jobCompare;
+        return a.name.localeCompare(b.name);
+    });
+
+    participants.forEach(player => {
+        const option = document.createElement('option');
+        option.value = player.name;
+        const jobLabel = player.job_name ? ` (${player.job_name})` : '';
+        option.textContent = `${player.name}${jobLabel}`;
+        elements.playerFilter.appendChild(option);
+    });
+
+    // Restore selection if still valid
+    if (currentValue && participantNames.has(currentValue)) {
+        elements.playerFilter.value = currentValue;
+    }
 }
 
 // Populate ability filter
@@ -1236,13 +1451,27 @@ async function renderDebuffBreakdown(selectedDebuff) {
     elements.debuffBreakdownTableBody.innerHTML = bodyHtml;
 }
 
-// Get player job info from session data
+// Get player job info from session or current fight data
 function getPlayerJob(playerName) {
-    if (!sessionData || !sessionData.players) return null;
-    // Players may be an object with player IDs as keys
-    const players = Object.values(sessionData.players);
-    const player = players.find(p => p.name === playerName);
-    return player ? player.job_name : null;
+    // First check current fight's players (most relevant for multi-fight logs)
+    if (currentFightData && currentFightData.players) {
+        const fightPlayers = Object.values(currentFightData.players);
+        const fightPlayer = fightPlayers.find(p => p.name === playerName);
+        if (fightPlayer && fightPlayer.job_name) {
+            return fightPlayer.job_name;
+        }
+    }
+
+    // Fall back to session players
+    if (sessionData && sessionData.players) {
+        const players = Object.values(sessionData.players);
+        const player = players.find(p => p.name === playerName);
+        if (player && player.job_name) {
+            return player.job_name;
+        }
+    }
+
+    return null;
 }
 
 // Job role mappings

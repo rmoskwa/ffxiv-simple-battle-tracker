@@ -222,6 +222,7 @@ class Fight:
     boss_name: str = ""
     start_time: Optional[datetime] = None
     attempts: List[FightAttempt] = field(default_factory=list)
+    players: Dict[str, "Player"] = field(default_factory=dict)
 
     @property
     def current_attempt(self) -> Optional[FightAttempt]:
@@ -278,6 +279,10 @@ class Fight:
             "deaths_by_player": all_deaths,
         }
 
+    def add_player(self, player: "Player") -> None:
+        """Add a player to this fight."""
+        self.players[player.id] = player
+
     def to_dict(self) -> dict:
         """Convert to dictionary for JSON serialization."""
         return {
@@ -291,6 +296,7 @@ class Fight:
             "total_wipes": self.total_wipes,
             "total_victories": self.total_victories,
             "total_deaths": self.total_deaths,
+            "players": {pid: {"id": p.id, "name": p.name, "job_id": p.job_id, "job_name": p.job_name} for pid, p in self.players.items()},
         }
 
 

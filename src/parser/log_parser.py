@@ -149,6 +149,9 @@ class LogParser:
                 job_name=get_job_name(data.job_id),
             )
             self.session.add_player(player)
+            # Also add to current fight if one exists
+            if self.session.current_fight:
+                self.session.current_fight.add_player(player)
 
     def _handle_ability(self, fields: list) -> None:
         """Handle ability (Line 21/22)."""
