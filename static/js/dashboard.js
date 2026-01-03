@@ -927,14 +927,16 @@ function groupTimelineEvents(events, windowSeconds) {
         const groupKey = event.type === 'death' ? event.target : event.name;
 
         // Check if this event can be added to the current group
+        // Use rolling window: compare against last event time, not first
         const canGroup = currentGroup &&
             currentGroup.type === event.type &&
             currentGroup.groupKey === groupKey &&
-            (event.relative_time - currentGroup.relative_time) <= windowSeconds;
+            (event.relative_time - currentGroup.lastEventTime) <= windowSeconds;
 
         if (canGroup) {
             // Add to current group
             currentGroup.count++;
+            currentGroup.lastEventTime = event.relative_time; // Update rolling window
             const targetName = event.type === 'death' ? event.name : event.target;
             currentGroup.allTargets.push(targetName);
             currentGroup.uniqueTargets.add(targetName);
@@ -954,6 +956,7 @@ function groupTimelineEvents(events, windowSeconds) {
                 name: event.type === 'death' ? event.target : event.name,
                 groupKey: groupKey,
                 relative_time: event.relative_time,
+                lastEventTime: event.relative_time, // Track last event for rolling window
                 count: 1,
                 allTargets: [targetName],
                 uniqueTargets: new Set([targetName]),
