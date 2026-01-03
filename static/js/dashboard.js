@@ -21,8 +21,6 @@ const elements = {
     totalFights: document.getElementById('total-fights'),
     totalAttempts: document.getElementById('total-attempts'),
     totalWipes: document.getElementById('total-wipes'),
-    totalVictories: document.getElementById('total-victories'),
-    totalDamage: document.getElementById('total-damage'),
     totalDeaths: document.getElementById('total-deaths'),
     avgDuration: document.getElementById('avg-duration'),
     fightsList: document.getElementById('fights-list'),
@@ -350,19 +348,14 @@ async function loadSummary() {
         elements.totalFights.textContent = 1;
         elements.totalAttempts.textContent = fightData.total_attempts || 0;
         elements.totalWipes.textContent = fightData.total_wipes || 0;
-        elements.totalVictories.textContent = fightData.total_victories || 0;
 
         // Calculate stats from fight data
         let totalDuration = 0;
-        let totalDamage = 0;
         const deathsByPlayer = {};
 
         if (fightData.attempts) {
             for (const attempt of fightData.attempts) {
                 totalDuration += attempt.duration_seconds || 0;
-                if (attempt.ability_hits) {
-                    totalDamage += attempt.ability_hits.reduce((sum, h) => sum + h.damage, 0);
-                }
                 if (attempt.deaths) {
                     for (const death of attempt.deaths) {
                         deathsByPlayer[death.player_name] = (deathsByPlayer[death.player_name] || 0) + 1;
@@ -376,7 +369,6 @@ async function loadSummary() {
 
         const avgDuration = fightData.total_attempts > 0 ? totalDuration / fightData.total_attempts : 0;
         elements.avgDuration.textContent = formatDuration(avgDuration);
-        elements.totalDamage.textContent = totalDamage.toLocaleString();
 
         renderDeathsSummary(deathsByPlayer);
     } else {
@@ -388,18 +380,16 @@ async function loadSummary() {
         elements.totalFights.textContent = data.total_fights || 0;
         elements.totalAttempts.textContent = data.total_attempts;
         elements.totalWipes.textContent = data.total_wipes;
-        elements.totalVictories.textContent = data.total_victories;
 
         // Calculate extended stats
         const totalDeaths = Object.values(data.deaths_by_player).reduce((a, b) => a + b, 0);
         elements.totalDeaths.textContent = totalDeaths;
 
-        // Load fights for duration and damage calculation
+        // Load fights for duration calculation
         const fightsDataResp = await fetchAPI('/api/fights');
         if (fightsDataResp && fightsDataResp.fights.length > 0) {
             let totalDuration = 0;
             let totalAttempts = 0;
-            let totalDamage = 0;
 
             for (const fight of fightsDataResp.fights) {
                 const fightDetails = await fetchAPI(`/api/fights/${fight.fight_id}`);
@@ -407,16 +397,12 @@ async function loadSummary() {
                     for (const attempt of fightDetails.attempts) {
                         totalDuration += attempt.duration_seconds || 0;
                         totalAttempts++;
-                        if (attempt.ability_hits) {
-                            totalDamage += attempt.ability_hits.reduce((sum, h) => sum + h.damage, 0);
-                        }
                     }
                 }
             }
 
             const avgDuration = totalAttempts > 0 ? totalDuration / totalAttempts : 0;
             elements.avgDuration.textContent = formatDuration(avgDuration);
-            elements.totalDamage.textContent = totalDamage.toLocaleString();
         }
 
         renderDeathsSummary(data.deaths_by_player);

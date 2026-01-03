@@ -140,18 +140,6 @@ main {
     gap: 0.5rem;
 }
 
-.stats-grid.stats-grid-4 {
-    grid-template-columns: repeat(4, 1fr);
-}
-
-.stats-grid.stats-grid-4 .stat-item {
-    padding: 0.5rem;
-}
-
-.stats-grid.stats-grid-4 .stat-value {
-    font-size: 1.25rem;
-}
-
 .stat-item {
     background: var(--bg-tertiary);
     padding: 0.75rem;
