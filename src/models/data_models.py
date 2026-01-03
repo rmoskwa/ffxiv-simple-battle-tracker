@@ -26,6 +26,8 @@ class Player:
     """Represents a player in the raid."""
     id: str           # e.g., "1075762D"
     name: str         # e.g., "Jalapeno Jeff"
+    job_id: str = ""  # e.g., "21" for Astrologian
+    job_name: str = ""  # e.g., "Astrologian"
 
     def __hash__(self):
         return hash(self.id)
@@ -421,7 +423,7 @@ class RaidSession:
         """Convert to dictionary for JSON serialization."""
         return {
             "start_time": self.start_time.isoformat() if self.start_time else None,
-            "players": {pid: {"id": p.id, "name": p.name} for pid, p in self.players.items()},
+            "players": {pid: {"id": p.id, "name": p.name, "job_id": p.job_id, "job_name": p.job_name} for pid, p in self.players.items()},
             "fights": [fight.to_dict() for fight in self.fights],
             "cross_attempt_stats": self.get_cross_attempt_stats(),
             # Legacy fields for backwards compatibility

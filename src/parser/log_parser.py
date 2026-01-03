@@ -11,7 +11,7 @@ from ..models.data_models import (
     Player,
     RaidSession,
 )
-from .line_handlers import LineHandlers
+from .line_handlers import LineHandlers, get_job_name
 
 
 # Known non-combat zones (cities, housing, etc.) - these don't create Fight entries
@@ -142,7 +142,12 @@ class LogParser:
 
         # Only add players (ID starts with 10)
         if data.is_player and data.name:
-            player = Player(id=data.id, name=data.name)
+            player = Player(
+                id=data.id,
+                name=data.name,
+                job_id=data.job_id,
+                job_name=get_job_name(data.job_id),
+            )
             self.session.add_player(player)
 
     def _handle_ability(self, fields: list) -> None:

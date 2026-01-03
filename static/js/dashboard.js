@@ -583,10 +583,19 @@ function populatePlayerFilter(players) {
     const currentValue = elements.playerFilter.value;
     elements.playerFilter.innerHTML = '<option value="">All Players</option>';
 
-    Object.values(players).forEach(player => {
+    // Sort players by job role then name
+    const sortedPlayers = Object.values(players).sort((a, b) => {
+        // Sort by job name first, then player name
+        const jobCompare = (a.job_name || '').localeCompare(b.job_name || '');
+        if (jobCompare !== 0) return jobCompare;
+        return a.name.localeCompare(b.name);
+    });
+
+    sortedPlayers.forEach(player => {
         const option = document.createElement('option');
         option.value = player.name;
-        option.textContent = player.name;
+        const jobLabel = player.job_name ? ` (${player.job_name})` : '';
+        option.textContent = `${player.name}${jobLabel}`;
         elements.playerFilter.appendChild(option);
     });
 
@@ -1077,7 +1086,8 @@ async function renderAbilityBreakdown(selectedAbility) {
         });
     });
 
-    const playerList = Array.from(allPlayers).sort();
+    // Sort players by role (Tank -> Healer -> DPS) then by name
+    const playerList = sortPlayersByRole(Array.from(allPlayers));
 
     // If no hits found for this ability
     if (playerList.length === 0) {
@@ -1086,10 +1096,12 @@ async function renderAbilityBreakdown(selectedAbility) {
         return;
     }
 
-    // Build header row
+    // Build header row with role-based coloring
     let headerHtml = '<tr><th>Attempt</th>';
     playerList.forEach(player => {
-        headerHtml += `<th>${player}</th>`;
+        const role = getPlayerRole(player);
+        const roleClass = role ? `role-${role}` : '';
+        headerHtml += `<th class="${roleClass}">${player}</th>`;
     });
     headerHtml += '<th>Total</th></tr>';
     elements.breakdownTableHead.innerHTML = headerHtml;
@@ -1170,7 +1182,8 @@ async function renderDebuffBreakdown(selectedDebuff) {
         });
     });
 
-    const playerList = Array.from(allPlayers).sort();
+    // Sort players by role (Tank -> Healer -> DPS) then by name
+    const playerList = sortPlayersByRole(Array.from(allPlayers));
 
     // If no applications found for this debuff
     if (playerList.length === 0) {
@@ -1179,10 +1192,12 @@ async function renderDebuffBreakdown(selectedDebuff) {
         return;
     }
 
-    // Build header row
+    // Build header row with role-based coloring
     let headerHtml = '<tr><th>Attempt</th>';
     playerList.forEach(player => {
-        headerHtml += `<th>${player}</th>`;
+        const role = getPlayerRole(player);
+        const roleClass = role ? `role-${role}` : '';
+        headerHtml += `<th class="${roleClass}">${player}</th>`;
     });
     headerHtml += '<th>Total</th></tr>';
     elements.debuffBreakdownTableHead.innerHTML = headerHtml;
@@ -1221,6 +1236,55 @@ async function renderDebuffBreakdown(selectedDebuff) {
     elements.debuffBreakdownTableBody.innerHTML = bodyHtml;
 }
 
+// Get player job info from session data
+function getPlayerJob(playerName) {
+    if (!sessionData || !sessionData.players) return null;
+    // Players may be an object with player IDs as keys
+    const players = Object.values(sessionData.players);
+    const player = players.find(p => p.name === playerName);
+    return player ? player.job_name : null;
+}
+
+// Job role mappings
+const TANK_JOBS = ['Paladin', 'Warrior', 'Dark Knight', 'Gunbreaker', 'Gladiator', 'Marauder'];
+const HEALER_JOBS = ['White Mage', 'Scholar', 'Astrologian', 'Sage', 'Conjurer'];
+const DPS_JOBS = [
+    // Melee
+    'Monk', 'Dragoon', 'Ninja', 'Samurai', 'Reaper', 'Viper', 'Pugilist', 'Lancer', 'Rogue',
+    // Ranged
+    'Bard', 'Machinist', 'Dancer', 'Archer',
+    // Caster
+    'Black Mage', 'Summoner', 'Red Mage', 'Pictomancer', 'Thaumaturge', 'Arcanist', 'Blue Mage'
+];
+
+// Get job role from job name
+function getJobRole(jobName) {
+    if (!jobName) return null;
+    if (TANK_JOBS.includes(jobName)) return 'tank';
+    if (HEALER_JOBS.includes(jobName)) return 'healer';
+    if (DPS_JOBS.includes(jobName)) return 'dps';
+    return null;
+}
+
+// Get job role for a player by name
+function getPlayerRole(playerName) {
+    const jobName = getPlayerJob(playerName);
+    return getJobRole(jobName);
+}
+
+// Sort players by role (Tank -> Healer -> DPS) then by name
+function sortPlayersByRole(players) {
+    const roleOrder = { 'tank': 0, 'healer': 1, 'dps': 2 };
+    return players.sort((a, b) => {
+        const roleA = getPlayerRole(a) || 'zzz';
+        const roleB = getPlayerRole(b) || 'zzz';
+        const orderA = roleOrder[roleA] ?? 3;
+        const orderB = roleOrder[roleB] ?? 3;
+        if (orderA !== orderB) return orderA - orderB;
+        return a.localeCompare(b);
+    });
+}
+
 // Render deaths summary
 function renderDeathsSummary(deathsByPlayer) {
     elements.deathsSummaryList.innerHTML = '';
@@ -1235,8 +1299,13 @@ function renderDeathsSummary(deathsByPlayer) {
     sorted.forEach(([player, count]) => {
         const item = document.createElement('div');
         item.className = 'death-summary-item';
+        const jobName = getPlayerJob(player);
+        const jobLabel = jobName ? `<span class="player-job">${jobName}</span>` : '';
         item.innerHTML = `
-            <span class="player-name">${player}</span>
+            <span class="player-info">
+                <span class="player-name">${player}</span>
+                ${jobLabel}
+            </span>
             <span class="death-count">${count}</span>
         `;
         elements.deathsSummaryList.appendChild(item);

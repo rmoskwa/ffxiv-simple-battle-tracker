@@ -340,14 +340,26 @@ main {
 .death-summary-item {
     display: flex;
     justify-content: space-between;
+    align-items: center;
     padding: 0.5rem;
     background: var(--bg-tertiary);
     border-radius: 4px;
     font-size: 0.875rem;
 }
 
+.death-summary-item .player-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.125rem;
+}
+
 .death-summary-item .player-name {
     color: var(--text-primary);
+}
+
+.death-summary-item .player-job {
+    font-size: 0.7rem;
+    color: var(--text-secondary);
 }
 
 .death-summary-item .death-count {
@@ -779,6 +791,25 @@ tbody tr:hover {
 
 #debuff-breakdown-table .grand-total {
     color: var(--warning);
+}
+
+/* Role-based coloring for breakdown tables */
+#breakdown-table th.role-tank,
+#debuff-breakdown-table th.role-tank {
+    background: rgba(52, 152, 219, 0.3);
+    color: #5dade2;
+}
+
+#breakdown-table th.role-healer,
+#debuff-breakdown-table th.role-healer {
+    background: rgba(46, 204, 113, 0.3);
+    color: #58d68d;
+}
+
+#breakdown-table th.role-dps,
+#debuff-breakdown-table th.role-dps {
+    background: rgba(231, 76, 60, 0.3);
+    color: #ec7063;
 }
 
 /* Sortable columns */

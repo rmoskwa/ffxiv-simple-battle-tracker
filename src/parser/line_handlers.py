@@ -37,6 +37,68 @@ PLAYER_PET_NAMES = {
 }
 
 
+# Job ID to job name mapping (hex string -> job name)
+JOB_NAMES = {
+    "00": "Adventurer",
+    # Base classes
+    "01": "Gladiator",
+    "02": "Pugilist",
+    "03": "Marauder",
+    "04": "Lancer",
+    "05": "Archer",
+    "06": "Conjurer",
+    "07": "Thaumaturge",
+    "1A": "Arcanist",
+    "1D": "Rogue",
+    # Tanks
+    "13": "Paladin",
+    "15": "Warrior",
+    "20": "Dark Knight",
+    "25": "Gunbreaker",
+    # Healers
+    "18": "White Mage",
+    "1C": "Scholar",
+    "21": "Astrologian",
+    "28": "Sage",
+    # Melee DPS
+    "14": "Monk",
+    "16": "Dragoon",
+    "1E": "Ninja",
+    "22": "Samurai",
+    "27": "Reaper",
+    "29": "Viper",
+    # Physical Ranged DPS
+    "17": "Bard",
+    "1F": "Machinist",
+    "26": "Dancer",
+    # Magical Ranged DPS
+    "19": "Black Mage",
+    "1B": "Summoner",
+    "23": "Red Mage",
+    "2A": "Pictomancer",
+    # Crafters
+    "08": "Carpenter",
+    "09": "Blacksmith",
+    "0A": "Armorer",
+    "0B": "Goldsmith",
+    "0C": "Leatherworker",
+    "0D": "Weaver",
+    "0E": "Alchemist",
+    "0F": "Culinarian",
+    # Gatherers
+    "10": "Miner",
+    "11": "Botanist",
+    "12": "Fisher",
+    # Limited jobs
+    "24": "Blue Mage",
+}
+
+
+def get_job_name(job_id: str) -> str:
+    """Get job name from job ID hex string."""
+    return JOB_NAMES.get(job_id.upper(), "Unknown")
+
+
 @dataclass
 class ZoneChangeData:
     """Data extracted from a zone change line (Line 01)."""

@@ -313,7 +313,7 @@ def register_routes(app: Flask) -> None:
             "total_wipes": stats["total_wipes"],
             "total_victories": stats["total_victories"],
             "deaths_by_player": stats["deaths_by_player"],
-            "players": [{"id": p.id, "name": p.name} for p in session.players.values()],
+            "players": [{"id": p.id, "name": p.name, "job_id": p.job_id, "job_name": p.job_name} for p in session.players.values()],
         })
 
     @app.route("/api/players")
@@ -323,7 +323,7 @@ def register_routes(app: Flask) -> None:
         session = parser.get_session()
 
         return jsonify({
-            "players": [{"id": p.id, "name": p.name} for p in session.players.values()],
+            "players": [{"id": p.id, "name": p.name, "job_id": p.job_id, "job_name": p.job_name} for p in session.players.values()],
             "total": len(session.players),
         })
 
