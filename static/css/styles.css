@@ -678,6 +678,82 @@ tbody tr:hover {
     margin-left: 0.25rem;
 }
 
+/* Ability Breakdown */
+#breakdown-container {
+    background: var(--bg-secondary);
+    border-radius: 4px;
+    padding: 1rem;
+}
+
+#breakdown-header {
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--border-color);
+    font-weight: 600;
+}
+
+#breakdown-ability-name {
+    color: var(--accent-primary);
+}
+
+#breakdown-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+#breakdown-table th,
+#breakdown-table td {
+    padding: 0.5rem 0.75rem;
+    text-align: center;
+    border: 1px solid var(--border-color);
+}
+
+#breakdown-table th {
+    background: var(--bg-tertiary);
+    font-weight: 600;
+    font-size: 0.8rem;
+}
+
+#breakdown-table th:first-child {
+    text-align: left;
+}
+
+#breakdown-table .attempt-cell {
+    text-align: left;
+    font-weight: 500;
+}
+
+#breakdown-table .attempt-cell.wipe {
+    color: var(--danger);
+}
+
+#breakdown-table .attempt-cell.victory {
+    color: var(--success);
+}
+
+#breakdown-table .count-cell.has-hits {
+    background: rgba(233, 69, 96, 0.15);
+    color: var(--accent-primary);
+    font-weight: 600;
+}
+
+#breakdown-table .total-cell {
+    font-weight: 600;
+    color: var(--text-secondary);
+}
+
+#breakdown-table .totals-row {
+    background: var(--bg-tertiary);
+}
+
+#breakdown-table .totals-row td {
+    border-top: 2px solid var(--border-color);
+}
+
+#breakdown-table .grand-total {
+    color: var(--accent-primary);
+}
+
 /* Sortable columns */
 th.sortable {
     cursor: pointer;

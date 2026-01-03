@@ -101,6 +101,7 @@
                     <button class="tab-btn" data-tab="debuffs" title="Press 2">Debuffs</button>
                     <button class="tab-btn" data-tab="deaths" title="Press 3">Deaths</button>
                     <button class="tab-btn" data-tab="timeline" title="Press 4">Timeline</button>
+                    <button class="tab-btn" data-tab="breakdown" title="Press 5">Ability Breakdown</button>
                 </div>
                 <div class="tabs-right">
                     <label class="checkbox-label">
@@ -166,13 +167,31 @@
                         <div id="timeline-content"></div>
                     </div>
                 </div>
+
+                <div id="breakdown-tab" class="tab-panel">
+                    <div id="breakdown-container">
+                        <div id="breakdown-prompt" class="empty-state">
+                            <p>Select a specific ability from the dropdown to see breakdown across attempts</p>
+                        </div>
+                        <div id="breakdown-content" style="display: none;">
+                            <div id="breakdown-header">
+                                <span>Ability: </span>
+                                <span id="breakdown-ability-name"></span>
+                            </div>
+                            <table id="breakdown-table">
+                                <thead></thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
             </div>
         </section>
     </main>
 
     <footer>
         <p>FFXIV Battle Tracker - Parsing ACT logs for raid analysis</p>
-        <p class="shortcuts-hint">Shortcuts: 1-4 Tabs | Ctrl+R Refresh | Ctrl+F Search | Ctrl+E Export | Esc Clear</p>
+        <p class="shortcuts-hint">Shortcuts: 1-5 Tabs | Ctrl+R Refresh | Ctrl+F Search | Ctrl+E Export | Esc Clear</p>
     </footer>
 
     <script src="/static/js/dashboard.js"></script>

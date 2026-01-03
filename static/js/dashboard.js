@@ -43,6 +43,11 @@ const elements = {
     debuffsSummary: document.getElementById('debuffs-summary'),
     timelineContent: document.getElementById('timeline-content'),
     timelineDuration: document.getElementById('timeline-duration'),
+    breakdownPrompt: document.getElementById('breakdown-prompt'),
+    breakdownContent: document.getElementById('breakdown-content'),
+    breakdownAbilityName: document.getElementById('breakdown-ability-name'),
+    breakdownTableHead: document.querySelector('#breakdown-table thead'),
+    breakdownTableBody: document.querySelector('#breakdown-table tbody'),
 };
 
 // Initialize
@@ -72,8 +77,8 @@ function initKeyboardShortcuts() {
         }
 
         // Tab switching with number keys
-        if (e.key >= '1' && e.key <= '4') {
-            const tabs = ['abilities', 'debuffs', 'deaths', 'timeline'];
+        if (e.key >= '1' && e.key <= '5') {
+            const tabs = ['abilities', 'debuffs', 'deaths', 'timeline', 'breakdown'];
             const tabIndex = parseInt(e.key) - 1;
             if (tabs[tabIndex]) {
                 switchTab(tabs[tabIndex]);
@@ -559,6 +564,7 @@ async function loadAttemptDetails(fightId, attemptNumber) {
     renderDebuffsTable(data.debuffs_applied, playerFilter, searchFilter, showUnknown);
     renderDeathsTable(data.deaths, searchFilter);
     renderTimeline(data, showUnknown);
+    renderAbilityBreakdown(abilityFilter);
 }
 
 // Populate player filter
@@ -996,6 +1002,99 @@ function finalizeGroup(group) {
         group.isMultiRound = false;
         group.displayTargets = Array.from(group.uniqueTargets);
     }
+}
+
+// Render ability breakdown across all attempts
+async function renderAbilityBreakdown(selectedAbility) {
+    // If no specific ability selected, show prompt
+    if (!selectedAbility || !currentFight) {
+        elements.breakdownPrompt.style.display = 'block';
+        elements.breakdownContent.style.display = 'none';
+        return;
+    }
+
+    // Show content, hide prompt
+    elements.breakdownPrompt.style.display = 'none';
+    elements.breakdownContent.style.display = 'block';
+    elements.breakdownAbilityName.textContent = selectedAbility;
+
+    // Fetch fight data to get all attempts
+    const fightData = await fetchAPI(`/api/fights/${currentFight}`);
+    if (!fightData || !fightData.attempts) {
+        elements.breakdownTableBody.innerHTML = '<tr><td colspan="100%" class="empty-state">No data available</td></tr>';
+        return;
+    }
+
+    // Collect all unique players across all attempts
+    const allPlayers = new Set();
+    const attemptData = [];
+
+    fightData.attempts.forEach(attempt => {
+        const hitsByPlayer = {};
+
+        attempt.ability_hits.forEach(hit => {
+            if (hit.ability_name === selectedAbility) {
+                allPlayers.add(hit.target_name);
+                hitsByPlayer[hit.target_name] = (hitsByPlayer[hit.target_name] || 0) + 1;
+            }
+        });
+
+        attemptData.push({
+            attemptNumber: attempt.attempt_number,
+            outcome: attempt.outcome,
+            hitsByPlayer: hitsByPlayer
+        });
+    });
+
+    const playerList = Array.from(allPlayers).sort();
+
+    // If no hits found for this ability
+    if (playerList.length === 0) {
+        elements.breakdownTableHead.innerHTML = '';
+        elements.breakdownTableBody.innerHTML = '<tr><td class="empty-state">No hits recorded for this ability</td></tr>';
+        return;
+    }
+
+    // Build header row
+    let headerHtml = '<tr><th>Attempt</th>';
+    playerList.forEach(player => {
+        headerHtml += `<th>${player}</th>`;
+    });
+    headerHtml += '<th>Total</th></tr>';
+    elements.breakdownTableHead.innerHTML = headerHtml;
+
+    // Build data rows
+    let bodyHtml = '';
+    attemptData.forEach(attempt => {
+        const outcomeClass = attempt.outcome === 'victory' ? 'victory' : (attempt.outcome === 'wipe' ? 'wipe' : '');
+        bodyHtml += `<tr>`;
+        bodyHtml += `<td class="attempt-cell ${outcomeClass}">#${attempt.attemptNumber}</td>`;
+
+        let rowTotal = 0;
+        playerList.forEach(player => {
+            const count = attempt.hitsByPlayer[player] || 0;
+            rowTotal += count;
+            bodyHtml += `<td class="count-cell ${count > 0 ? 'has-hits' : ''}">${count || ''}</td>`;
+        });
+
+        bodyHtml += `<td class="total-cell">${rowTotal || ''}</td>`;
+        bodyHtml += '</tr>';
+    });
+
+    // Add totals row
+    bodyHtml += '<tr class="totals-row"><td><strong>Total</strong></td>';
+    let grandTotal = 0;
+    playerList.forEach(player => {
+        let playerTotal = 0;
+        attemptData.forEach(attempt => {
+            playerTotal += attempt.hitsByPlayer[player] || 0;
+        });
+        grandTotal += playerTotal;
+        bodyHtml += `<td class="total-cell">${playerTotal || ''}</td>`;
+    });
+    bodyHtml += `<td class="total-cell grand-total">${grandTotal}</td></tr>`;
+
+    elements.breakdownTableBody.innerHTML = bodyHtml;
 }
 
 // Render deaths summary
