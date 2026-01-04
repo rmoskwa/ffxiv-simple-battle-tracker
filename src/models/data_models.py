@@ -82,6 +82,7 @@ class DebuffApplied:
     target_id: str
     target_name: str
     stacks: int = 0
+    source_type: str = "enemy"  # "enemy" for 40xxxxxx sources, "environment" for E0000000
 
     def to_dict(self) -> dict:
         """Convert to dictionary for JSON serialization."""
@@ -95,6 +96,7 @@ class DebuffApplied:
             "target_id": self.target_id,
             "target_name": self.target_name,
             "stacks": self.stacks,
+            "source_type": self.source_type,
         }
 
 

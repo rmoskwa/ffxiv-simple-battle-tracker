@@ -699,6 +699,88 @@ tbody tr:hover {
     color: var(--warning);
 }
 
+/* Breakdown Filter Bars */
+.breakdown-filter-bar {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.breakdown-filter-bar label {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+.breakdown-filter-bar select {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    font-size: 0.875rem;
+    min-width: 250px;
+    cursor: pointer;
+}
+
+.breakdown-filter-bar select:hover {
+    border-color: var(--accent-primary);
+}
+
+.breakdown-filter-bar select:focus {
+    outline: none;
+    border-color: var(--accent-primary);
+    box-shadow: 0 0 0 2px rgba(233, 69, 96, 0.2);
+}
+
+/* Source Type Styling for Debuffs */
+/* Environment/Mechanic debuffs get a cyan/teal left border */
+#debuffs-table tbody tr.source-environment {
+    border-left: 3px solid #00bcd4;
+}
+
+#debuffs-table tbody tr.source-enemy {
+    border-left: 3px solid transparent;
+}
+
+/* Timeline debuff events - environment source */
+.timeline-event.debuff.source-environment {
+    background: rgba(0, 188, 212, 0.2);
+    border-left-color: #00bcd4;
+}
+
+/* Keep default orange for enemy-sourced debuffs */
+.timeline-event.debuff.source-enemy {
+    background: rgba(255, 152, 0, 0.2);
+    border-left-color: var(--warning);
+}
+
+/* Optgroup styling for dropdowns */
+select optgroup {
+    font-weight: 600;
+    font-style: normal;
+    color: var(--text-secondary);
+    background: var(--bg-tertiary);
+    padding: 4px 0;
+}
+
+select optgroup[label="Mechanic"] {
+    color: #00bcd4;
+}
+
+select optgroup[label="Enemy"] {
+    color: var(--warning);
+}
+
+select optgroup option {
+    font-weight: normal;
+    color: var(--text-primary);
+    padding-left: 12px;
+}
+
 #breakdown-table,
 #debuff-breakdown-table {
     width: 100%;

@@ -51,6 +51,9 @@ const elements = {
     debuffBreakdownName: document.getElementById('debuff-breakdown-name'),
     debuffBreakdownTableHead: document.querySelector('#debuff-breakdown-table thead'),
     debuffBreakdownTableBody: document.querySelector('#debuff-breakdown-table tbody'),
+    // Breakdown-specific filters (populated from all attempts)
+    breakdownAbilityFilter: document.getElementById('breakdown-ability-filter'),
+    breakdownDebuffFilter: document.getElementById('breakdown-debuff-filter'),
 };
 
 // Initialize
@@ -282,6 +285,14 @@ function initFilters() {
     elements.searchFilter.addEventListener('input', debounce(applyFilters, 300));
     elements.showUnknownFilter.addEventListener('change', applyFilters);
     elements.clearFilters.addEventListener('click', clearAllFilters);
+
+    // Breakdown-specific filter listeners
+    elements.breakdownAbilityFilter.addEventListener('change', () => {
+        renderAbilityBreakdown(elements.breakdownAbilityFilter.value);
+    });
+    elements.breakdownDebuffFilter.addEventListener('change', () => {
+        renderDebuffBreakdown(elements.breakdownDebuffFilter.value);
+    });
 }
 
 function clearAllFilters() {
@@ -638,9 +649,13 @@ async function loadAttemptDetails(fightId, attemptNumber) {
     elements.attemptHeader.textContent = `Attempt #${data.attempt_number} - ${data.outcome.toUpperCase()}`;
     elements.attemptMeta.textContent = `${zoneName} - ${data.boss_name} - ${formatDuration(data.duration_seconds)} - ${formatTime(data.start_time)}`;
 
-    // Populate ability and debuff filters
+    // Populate ability and debuff filters (per-attempt filters for Abilities/Debuffs tabs)
     populateAbilityFilter(data.ability_hits);
     populateDebuffFilter(data.debuffs_applied);
+
+    // Populate breakdown-specific filters (all abilities/debuffs across all attempts)
+    populateBreakdownAbilityFilter();
+    populateBreakdownDebuffFilter();
 
     // Get filters
     const searchFilter = elements.searchFilter.value.toLowerCase();
@@ -653,8 +668,10 @@ async function loadAttemptDetails(fightId, attemptNumber) {
     renderDebuffsTable(data.debuffs_applied, playerFilter, debuffFilter, searchFilter, showUnknown);
     renderDeathsTable(data.deaths, searchFilter);
     renderTimeline(data, showUnknown);
-    renderAbilityBreakdown(abilityFilter);
-    renderDebuffBreakdown(debuffFilter);
+
+    // Breakdown tabs use their own dedicated dropdowns
+    renderAbilityBreakdown(elements.breakdownAbilityFilter.value);
+    renderDebuffBreakdown(elements.breakdownDebuffFilter.value);
 }
 
 // Populate player filter
@@ -770,21 +787,161 @@ function populateAbilityFilter(abilities) {
     elements.abilityFilter.value = currentValue;
 }
 
-// Populate debuff filter
+// Populate debuff filter with optgroups for source type
 function populateDebuffFilter(debuffs) {
     const currentValue = elements.debuffFilter.value;
-    const uniqueDebuffs = [...new Set(debuffs.map(d => d.effect_name))].sort();
+
+    // Group debuffs by source type
+    const debuffsByType = { environment: new Set(), enemy: new Set() };
+    debuffs.forEach(d => {
+        const sourceType = d.source_type || 'enemy';
+        debuffsByType[sourceType].add(d.effect_name);
+    });
 
     elements.debuffFilter.innerHTML = '<option value="">All Debuffs</option>';
 
-    uniqueDebuffs.forEach(name => {
+    // Add Mechanic (environment) group first if there are any
+    if (debuffsByType.environment.size > 0) {
+        const mechGroup = document.createElement('optgroup');
+        mechGroup.label = 'Mechanic';
+        [...debuffsByType.environment].sort().forEach(name => {
+            const option = document.createElement('option');
+            option.value = name;
+            option.textContent = name;
+            mechGroup.appendChild(option);
+        });
+        elements.debuffFilter.appendChild(mechGroup);
+    }
+
+    // Add Enemy group
+    if (debuffsByType.enemy.size > 0) {
+        const enemyGroup = document.createElement('optgroup');
+        enemyGroup.label = 'Enemy';
+        [...debuffsByType.enemy].sort().forEach(name => {
+            const option = document.createElement('option');
+            option.value = name;
+            option.textContent = name;
+            enemyGroup.appendChild(option);
+        });
+        elements.debuffFilter.appendChild(enemyGroup);
+    }
+
+    elements.debuffFilter.value = currentValue;
+}
+
+// Populate breakdown ability filter from ALL attempts in the current fight
+async function populateBreakdownAbilityFilter() {
+    if (!currentFight) {
+        elements.breakdownAbilityFilter.innerHTML = '<option value="">Select an ability...</option>';
+        return;
+    }
+
+    const currentValue = elements.breakdownAbilityFilter.value;
+
+    // Fetch fight data to get all attempts
+    const fightData = await fetchAPI(`/api/fights/${currentFight}`);
+    if (!fightData || !fightData.attempts) {
+        elements.breakdownAbilityFilter.innerHTML = '<option value="">No abilities found</option>';
+        return;
+    }
+
+    // Collect all unique abilities across all attempts
+    const allAbilities = new Set();
+    const showUnknown = elements.showUnknownFilter.checked;
+
+    fightData.attempts.forEach(attempt => {
+        if (attempt.ability_hits) {
+            attempt.ability_hits.forEach(hit => {
+                // Filter out unknown abilities unless showUnknown is checked
+                if (showUnknown || !hit.ability_name.toLowerCase().includes('unknown')) {
+                    allAbilities.add(hit.ability_name);
+                }
+            });
+        }
+    });
+
+    const sortedAbilities = [...allAbilities].sort();
+
+    elements.breakdownAbilityFilter.innerHTML = '<option value="">Select an ability...</option>';
+
+    sortedAbilities.forEach(name => {
         const option = document.createElement('option');
         option.value = name;
         option.textContent = name;
-        elements.debuffFilter.appendChild(option);
+        elements.breakdownAbilityFilter.appendChild(option);
     });
 
-    elements.debuffFilter.value = currentValue;
+    // Restore selection if still valid
+    if (currentValue && allAbilities.has(currentValue)) {
+        elements.breakdownAbilityFilter.value = currentValue;
+    }
+}
+
+// Populate breakdown debuff filter from ALL attempts in the current fight
+async function populateBreakdownDebuffFilter() {
+    if (!currentFight) {
+        elements.breakdownDebuffFilter.innerHTML = '<option value="">Select a debuff...</option>';
+        return;
+    }
+
+    const currentValue = elements.breakdownDebuffFilter.value;
+
+    // Fetch fight data to get all attempts
+    const fightData = await fetchAPI(`/api/fights/${currentFight}`);
+    if (!fightData || !fightData.attempts) {
+        elements.breakdownDebuffFilter.innerHTML = '<option value="">No debuffs found</option>';
+        return;
+    }
+
+    // Collect all unique debuffs across all attempts, grouped by source type
+    const debuffsByType = { environment: new Set(), enemy: new Set() };
+    const showUnknown = elements.showUnknownFilter.checked;
+
+    fightData.attempts.forEach(attempt => {
+        if (attempt.debuffs_applied) {
+            attempt.debuffs_applied.forEach(debuff => {
+                // Filter out unknown debuffs unless showUnknown is checked
+                if (showUnknown || !debuff.effect_name.toLowerCase().includes('unknown')) {
+                    const sourceType = debuff.source_type || 'enemy';
+                    debuffsByType[sourceType].add(debuff.effect_name);
+                }
+            });
+        }
+    });
+
+    elements.breakdownDebuffFilter.innerHTML = '<option value="">Select a debuff...</option>';
+
+    // Add Mechanic (environment) group first if there are any
+    if (debuffsByType.environment.size > 0) {
+        const mechGroup = document.createElement('optgroup');
+        mechGroup.label = 'Mechanic';
+        [...debuffsByType.environment].sort().forEach(name => {
+            const option = document.createElement('option');
+            option.value = name;
+            option.textContent = name;
+            mechGroup.appendChild(option);
+        });
+        elements.breakdownDebuffFilter.appendChild(mechGroup);
+    }
+
+    // Add Enemy group
+    if (debuffsByType.enemy.size > 0) {
+        const enemyGroup = document.createElement('optgroup');
+        enemyGroup.label = 'Enemy';
+        [...debuffsByType.enemy].sort().forEach(name => {
+            const option = document.createElement('option');
+            option.value = name;
+            option.textContent = name;
+            enemyGroup.appendChild(option);
+        });
+        elements.breakdownDebuffFilter.appendChild(enemyGroup);
+    }
+
+    // Restore selection if still valid
+    const allDebuffs = new Set([...debuffsByType.environment, ...debuffsByType.enemy]);
+    if (currentValue && allDebuffs.has(currentValue)) {
+        elements.breakdownDebuffFilter.value = currentValue;
+    }
 }
 
 // Render abilities table with sorting
@@ -921,6 +1078,8 @@ function renderDebuffsTable(debuffs, playerFilter, debuffFilter, searchFilter = 
 
     filtered.forEach(debuff => {
         const row = document.createElement('tr');
+        const sourceType = debuff.source_type || 'enemy';
+        row.className = `source-${sourceType}`;
         row.innerHTML = `
             <td>${formatRelativeTime(debuff.relative_time_seconds)}</td>
             <td>${debuff.effect_name}</td>
@@ -1033,6 +1192,7 @@ function renderTimeline(data, showUnknown = false) {
             name: d.effect_name,
             target: d.target_name,
             value: d.duration,
+            source_type: d.source_type || 'enemy',
         });
     });
 
@@ -1051,7 +1211,9 @@ function renderTimeline(data, showUnknown = false) {
 
     groupedEvents.forEach(group => {
         const div = document.createElement('div');
-        div.className = `timeline-event ${group.type}`;
+        // Add source-type class for debuffs (environment vs enemy)
+        const sourceClass = group.type === 'debuff' && group.source_type ? `source-${group.source_type}` : '';
+        div.className = `timeline-event ${group.type} ${sourceClass}`.trim();
 
         let icon, details, valueStr;
         const uniqueCount = group.displayTargets.length;
@@ -1163,6 +1325,8 @@ function groupTimelineEvents(events, windowSeconds) {
                 displayTargets: [],
                 rounds: 1,
                 isMultiRound: false,
+                // Preserve source_type for debuffs
+                source_type: event.source_type || null,
             };
         }
     });

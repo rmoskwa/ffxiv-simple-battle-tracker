@@ -388,8 +388,10 @@ class LineHandlers:
         target_name = fields[8]
         stack_count_str = fields[9]
 
-        # Only process enemy -> player debuffs
-        if not is_enemy_id(source_id) or not is_player_id(target_id):
+        # Only process enemy/environment -> player debuffs
+        # E0000000 is the "environment" source for mechanic-based debuffs (e.g., Thunderstruck, Doom, Neurolink)
+        is_valid_source = is_enemy_id(source_id) or source_id.upper() == "E0000000"
+        if not is_valid_source or not is_player_id(target_id):
             return None
 
         # Skip player pets (they have "40" IDs but are player-controlled)
@@ -412,6 +414,9 @@ class LineHandlers:
         except ValueError:
             stacks = 0
 
+        # Determine source type
+        source_type = "environment" if source_id.upper() == "E0000000" else "enemy"
+
         return DebuffApplied(
             timestamp=parse_timestamp(fields[1]),
             effect_id=effect_id,
@@ -422,6 +427,7 @@ class LineHandlers:
             target_id=target_id,
             target_name=target_name,
             stacks=stacks,
+            source_type=source_type,
         )
 
     @staticmethod
