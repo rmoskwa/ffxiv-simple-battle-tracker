@@ -34,11 +34,50 @@ def create_app(
     # Store parser and log file path in app config for access in routes
     app.config["parser"] = parser or LogParser()
     app.config["log_file_path"] = log_file_path
+    # Session-scoped manual hit type overrides (ability_id -> hit_type)
+    app.config["manual_hit_types"] = {}
 
     # Register routes
     register_routes(app)
 
     return app
+
+
+def apply_manual_hit_types(app: Flask) -> int:
+    """Apply manual hit type overrides to all attempts and recalculate damage.
+
+    Args:
+        app: Flask application with parser and manual_hit_types in config
+
+    Returns:
+        Number of abilities updated
+    """
+    parser: LogParser = app.config["parser"]
+    manual_overrides: dict[str, str] = app.config.get("manual_hit_types", {})
+
+    if not manual_overrides:
+        return 0
+
+    session = parser.get_session()
+    updated_count = 0
+
+    for fight in session.fights:
+        for attempt in fight.attempts:
+            needs_recalc = False
+            for hit in attempt.ability_hits:
+                ability_id_upper = hit.ability_id.upper()
+                if ability_id_upper in manual_overrides:
+                    new_type = manual_overrides[ability_id_upper]
+                    if hit.hit_type != new_type:
+                        hit.hit_type = new_type
+                        updated_count += 1
+                        needs_recalc = True
+
+            # Recalculate unmitigated damage if any hit types changed
+            if needs_recalc:
+                attempt.calculate_unmitigated_damage()
+
+    return updated_count
 
 
 def register_routes(app: Flask) -> None:
@@ -68,6 +107,9 @@ def register_routes(app: Flask) -> None:
         # Replace the parser in app config
         app.config["parser"] = new_parser
 
+        # Re-apply manual hit type overrides if any exist
+        overrides_applied = apply_manual_hit_types(app)
+
         session = new_parser.get_session()
         return jsonify(
             {
@@ -75,6 +117,7 @@ def register_routes(app: Flask) -> None:
                 "lines_processed": new_parser.lines_processed,
                 "fights": len(session.fights),
                 "attempts": len(session.attempts),
+                "manual_overrides_applied": overrides_applied,
             }
         )
 
@@ -372,6 +415,97 @@ def register_routes(app: Flask) -> None:
                 "total": len(session.players),
             }
         )
+
+    @app.route("/api/manual-hit-types", methods=["GET"])
+    def get_manual_hit_types():
+        """Get current manual hit type overrides."""
+        manual_overrides: dict[str, str] = app.config.get("manual_hit_types", {})
+        return jsonify({"manual_hit_types": manual_overrides})
+
+    @app.route("/api/manual-hit-types", methods=["POST"])
+    def set_manual_hit_types():
+        """Set manual hit type overrides and recalculate unmitigated damage.
+
+        Expected JSON body:
+            {"overrides": {"ABILITY_ID": "Physical|Magical|Special", ...}}
+        """
+        data = request.get_json()
+        if not data or "overrides" not in data:
+            return jsonify({"error": "Missing 'overrides' in request body"}), 400
+
+        new_overrides = data["overrides"]
+        if not isinstance(new_overrides, dict):
+            return jsonify({"error": "'overrides' must be a dictionary"}), 400
+
+        # Validate hit types
+        valid_types = {"Physical", "Magical", "Special", "Unknown"}
+        for ability_id, hit_type in new_overrides.items():
+            if hit_type not in valid_types:
+                return jsonify(
+                    {"error": f"Invalid hit type '{hit_type}' for {ability_id}"}
+                ), 400
+
+        # Normalize ability IDs to uppercase and merge with existing overrides
+        normalized = {k.upper(): v for k, v in new_overrides.items()}
+        app.config["manual_hit_types"].update(normalized)
+
+        # Apply overrides to all attempts
+        updated_count = apply_manual_hit_types(app)
+
+        return jsonify(
+            {
+                "success": True,
+                "abilities_updated": updated_count,
+                "total_overrides": len(app.config["manual_hit_types"]),
+            }
+        )
+
+    @app.route("/api/manual-hit-types", methods=["DELETE"])
+    def clear_manual_hit_types():
+        """Clear all manual hit type overrides."""
+        app.config["manual_hit_types"] = {}
+        return jsonify({"success": True, "message": "All manual overrides cleared"})
+
+    @app.route("/api/fights/<int:fight_id>/attempts/<int:attempt_num>/unique-abilities")
+    def get_attempt_unique_abilities(fight_id: int, attempt_num: int):
+        """Get unique abilities for a specific attempt with current hit types.
+
+        Returns a list of unique abilities with their IDs, names, and current hit types.
+        Used by the Manual Hit Type Entry modal.
+        """
+        parser: LogParser = app.config["parser"]
+        session = parser.get_session()
+        manual_overrides: dict[str, str] = app.config.get("manual_hit_types", {})
+
+        # Find the fight and attempt
+        for fight in session.fights:
+            if fight.fight_id == fight_id:
+                for attempt in fight.completed_attempts:
+                    if attempt.attempt_number == attempt_num:
+                        # Collect unique abilities
+                        unique_abilities: dict[str, dict] = {}
+                        for hit in attempt.ability_hits:
+                            aid_upper = hit.ability_id.upper()
+                            if aid_upper not in unique_abilities:
+                                unique_abilities[aid_upper] = {
+                                    "ability_id": aid_upper,
+                                    "ability_name": hit.ability_name,
+                                    "hit_type": hit.hit_type or "Unknown",
+                                    "is_manual_override": aid_upper in manual_overrides,
+                                }
+                        # Sort by ability name
+                        sorted_abilities = sorted(
+                            unique_abilities.values(),
+                            key=lambda x: x["ability_name"].lower(),
+                        )
+                        return jsonify(
+                            {
+                                "abilities": sorted_abilities,
+                                "total": len(sorted_abilities),
+                            }
+                        )
+                return jsonify({"error": "Attempt not found"}), 404
+        return jsonify({"error": "Fight not found"}), 404
 
 
 def run_server(

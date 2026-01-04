@@ -94,6 +94,7 @@
                             </select>
                         </div>
                         <button class="filter-btn clear-tab-filter" data-tab="abilities" title="Clear filters">Clear</button>
+                        <button id="manual-hit-type-btn" class="filter-btn" title="Manually set hit types for abilities">Manual Hit Types</button>
                     </div>
                     <table id="abilities-table">
                         <thead>
@@ -258,6 +259,35 @@
         <p>FFXIV Battle Tracker - Parsing ACT logs for raid analysis</p>
         <p class="shortcuts-hint">Shortcuts: 1-6 Tabs | Ctrl+R Refresh | Esc Clear</p>
     </footer>
+
+    <!-- Manual Hit Type Entry Modal -->
+    <div id="hit-type-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Manual Hit Type Entry</h3>
+                <button class="modal-close" id="hit-type-modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p class="modal-description">Set hit types for abilities. These will be remembered for the current session and applied to all attempts.</p>
+                <div id="hit-type-table-container">
+                    <table id="hit-type-table">
+                        <thead>
+                            <tr>
+                                <th>Ability</th>
+                                <th>Hit Type</th>
+                            </tr>
+                        </thead>
+                        <tbody id="hit-type-table-body">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="hit-type-cancel-btn" class="modal-btn secondary">Cancel</button>
+                <button id="hit-type-confirm-btn" class="modal-btn primary">Confirm</button>
+            </div>
+        </div>
+    </div>
 
     <script src="/static/js/dashboard.js"></script>
 </body>

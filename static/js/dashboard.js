@@ -66,6 +66,13 @@ const elements = {
     // Breakdown-specific filters (populated from all attempts)
     breakdownAbilityFilter: document.getElementById('breakdown-ability-filter'),
     breakdownDebuffFilter: document.getElementById('breakdown-debuff-filter'),
+    // Manual Hit Type Modal
+    manualHitTypeBtn: document.getElementById('manual-hit-type-btn'),
+    hitTypeModal: document.getElementById('hit-type-modal'),
+    hitTypeModalClose: document.getElementById('hit-type-modal-close'),
+    hitTypeTableBody: document.getElementById('hit-type-table-body'),
+    hitTypeCancelBtn: document.getElementById('hit-type-cancel-btn'),
+    hitTypeConfirmBtn: document.getElementById('hit-type-confirm-btn'),
 };
 
 // Initialize
@@ -76,6 +83,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initSorting();
     initRefresh();
     initFightSelector();
+    initManualHitTypeModal();
     loadSession();
     loadFights();
 });
@@ -2103,6 +2111,154 @@ function calculateMedian(arr) {
     const sorted = [...arr].sort((a, b) => a - b);
     const mid = Math.floor(sorted.length / 2);
     return sorted.length % 2 !== 0 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+}
+
+// Manual Hit Type Modal Functions
+function initManualHitTypeModal() {
+    // Open modal button
+    elements.manualHitTypeBtn.addEventListener('click', openManualHitTypeModal);
+
+    // Close modal buttons
+    elements.hitTypeModalClose.addEventListener('click', closeManualHitTypeModal);
+    elements.hitTypeCancelBtn.addEventListener('click', closeManualHitTypeModal);
+
+    // Confirm button
+    elements.hitTypeConfirmBtn.addEventListener('click', submitManualHitTypes);
+
+    // Close on backdrop click
+    elements.hitTypeModal.addEventListener('click', (e) => {
+        if (e.target === elements.hitTypeModal) {
+            closeManualHitTypeModal();
+        }
+    });
+
+    // Close on Escape key
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && elements.hitTypeModal.classList.contains('show')) {
+            closeManualHitTypeModal();
+        }
+    });
+}
+
+async function openManualHitTypeModal() {
+    if (!currentFight || !currentAttempt) {
+        showNotification('Please select an attempt first');
+        return;
+    }
+
+    // Fetch unique abilities for this attempt
+    const data = await fetchAPI(
+        `/api/fights/${currentFight}/attempts/${currentAttempt}/unique-abilities`
+    );
+
+    if (!data || !data.abilities) {
+        showNotification('Failed to load abilities');
+        return;
+    }
+
+    // Populate the table
+    populateHitTypeTable(data.abilities);
+
+    // Show modal
+    elements.hitTypeModal.classList.add('show');
+}
+
+function closeManualHitTypeModal() {
+    elements.hitTypeModal.classList.remove('show');
+}
+
+function populateHitTypeTable(abilities) {
+    elements.hitTypeTableBody.innerHTML = '';
+
+    if (abilities.length === 0) {
+        elements.hitTypeTableBody.innerHTML = `
+            <tr>
+                <td colspan="2" class="empty-state">No abilities found</td>
+            </tr>
+        `;
+        return;
+    }
+
+    const hitTypeOptions = ['Unknown', 'Physical', 'Magical', 'Special'];
+
+    abilities.forEach(ability => {
+        const row = document.createElement('tr');
+        if (ability.is_manual_override) {
+            row.classList.add('manual-override');
+        }
+
+        // Create options for select
+        const optionsHtml = hitTypeOptions.map(type => {
+            const selected = ability.hit_type === type ? 'selected' : '';
+            return `<option value="${type}" ${selected}>${type}</option>`;
+        }).join('');
+
+        row.innerHTML = `
+            <td>
+                ${ability.ability_name}
+                <span class="ability-id">(${ability.ability_id})</span>
+            </td>
+            <td>
+                <select data-ability-id="${ability.ability_id}">
+                    ${optionsHtml}
+                </select>
+            </td>
+        `;
+
+        elements.hitTypeTableBody.appendChild(row);
+    });
+}
+
+async function submitManualHitTypes() {
+    // Collect all hit type selections
+    const overrides = {};
+    const selects = elements.hitTypeTableBody.querySelectorAll('select');
+
+    selects.forEach(select => {
+        const abilityId = select.dataset.abilityId;
+        const hitType = select.value;
+        // Only include if not "Unknown" (or include all for explicit override)
+        if (hitType !== 'Unknown') {
+            overrides[abilityId] = hitType;
+        }
+    });
+
+    if (Object.keys(overrides).length === 0) {
+        showNotification('No hit types to save');
+        closeManualHitTypeModal();
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/manual-hit-types', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ overrides }),
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.success) {
+            showNotification(
+                `Updated ${data.abilities_updated} abilities (${data.total_overrides} total overrides)`
+            );
+
+            // Close modal
+            closeManualHitTypeModal();
+
+            // Reload the current attempt to show updated values
+            if (currentFight && currentAttempt) {
+                await loadAttemptDetails(currentFight, currentAttempt);
+            }
+        } else {
+            showNotification(data.error || 'Failed to save hit types');
+        }
+    } catch (error) {
+        console.error('Failed to submit manual hit types:', error);
+        showNotification('Failed to save hit types - check console');
+    }
 }
 
 // Utility functions
