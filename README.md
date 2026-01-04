@@ -27,6 +27,7 @@ cd ffxiv-battle-tracker
 # Create and activate a virtual environment
 python -m venv .venv
 source .venv\Scripts\activate # Ubuntu
+# OR
 .\.venv\Scripts\Activate.ps1 # Windows
 
 # Install from pyproject.toml
