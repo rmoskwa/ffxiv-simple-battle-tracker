@@ -173,6 +173,10 @@
                                 <option value="death">Deaths</option>
                             </select>
                         </div>
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="timeline-simplified-toggle">
+                            <span>Simplified View</span>
+                        </label>
                         <button class="filter-btn clear-tab-filter" data-tab="timeline" title="Clear filters">Clear</button>
                     </div>
                     <div id="timeline-container">
@@ -181,6 +185,13 @@
                             <span id="timeline-duration"></span>
                         </div>
                         <div id="timeline-content"></div>
+                    </div>
+                    <div id="simplified-timeline-container" style="display: none;">
+                        <div id="simplified-timeline-header">
+                            <span>Simplified Timeline</span>
+                            <span id="simplified-timeline-duration"></span>
+                        </div>
+                        <div id="simplified-timeline-content"></div>
                     </div>
                 </div>
 

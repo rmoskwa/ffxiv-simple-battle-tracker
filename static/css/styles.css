@@ -684,6 +684,138 @@ tbody tr:hover {
     margin-left: 0.25rem;
 }
 
+/* Simplified Timeline */
+#simplified-timeline-container {
+    background: var(--bg-secondary);
+    border-radius: 4px;
+    padding: 1rem;
+}
+
+#simplified-timeline-header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--border-color);
+    font-weight: 600;
+}
+
+#simplified-timeline-duration {
+    color: var(--text-secondary);
+    font-weight: normal;
+}
+
+#simplified-timeline-content {
+    display: flex;
+    gap: 1rem;
+}
+
+.simplified-column {
+    flex: 1;
+    min-width: 0;
+}
+
+.simplified-column-header {
+    font-weight: 600;
+    font-size: 0.875rem;
+    text-transform: uppercase;
+    padding: 0.5rem 0.75rem;
+    margin-bottom: 0.5rem;
+    border-radius: 4px;
+    text-align: center;
+}
+
+.simplified-column.abilities .simplified-column-header {
+    background: rgba(83, 52, 131, 0.4);
+    color: #b794f6;
+}
+
+.simplified-column.debuffs .simplified-column-header {
+    background: rgba(255, 152, 0, 0.3);
+    color: #ffb74d;
+}
+
+.simplified-column.deaths .simplified-column-header {
+    background: rgba(244, 67, 54, 0.3);
+    color: #ef9a9a;
+}
+
+.simplified-events-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.simplified-event-row {
+    display: flex;
+    align-items: stretch;
+    gap: 0.5rem;
+    min-height: 28px;
+}
+
+.simplified-time {
+    color: var(--text-secondary);
+    font-family: monospace;
+    font-size: 0.8rem;
+    min-width: 50px;
+    display: flex;
+    align-items: center;
+}
+
+.simplified-event-cell {
+    flex: 1;
+    padding: 0.35rem 0.5rem;
+    border-radius: 3px;
+    font-size: 0.8rem;
+    display: flex;
+    align-items: center;
+    min-height: 24px;
+}
+
+.simplified-event-cell.empty {
+    background: transparent;
+}
+
+.simplified-event-cell.ability {
+    background: rgba(83, 52, 131, 0.35);
+    border-left: 3px solid var(--accent-secondary);
+    color: var(--text-primary);
+}
+
+.simplified-event-cell.debuff {
+    background: rgba(255, 152, 0, 0.25);
+    border-left: 3px solid var(--warning);
+    color: var(--text-primary);
+}
+
+.simplified-event-cell.debuff.source-environment {
+    background: rgba(0, 188, 212, 0.25);
+    border-left-color: #00bcd4;
+}
+
+.simplified-event-cell.death {
+    background: rgba(244, 67, 54, 0.3);
+    border-left: 3px solid var(--danger);
+    color: var(--text-primary);
+}
+
+.simplified-event-name {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.simplified-event-count {
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+    padding: 0.1rem 0.35rem;
+    border-radius: 8px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    margin-left: 0.35rem;
+    flex-shrink: 0;
+}
+
 /* Ability Breakdown */
 #breakdown-container,
 #debuff-breakdown-container {

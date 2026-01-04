@@ -42,8 +42,13 @@ const elements = {
     deathsTable: document.querySelector('#deaths-table tbody'),
     // Timeline tab filter
     timelineEventFilter: document.getElementById('timeline-event-filter'),
+    timelineSimplifiedToggle: document.getElementById('timeline-simplified-toggle'),
+    timelineContainer: document.getElementById('timeline-container'),
     timelineContent: document.getElementById('timeline-content'),
     timelineDuration: document.getElementById('timeline-duration'),
+    simplifiedTimelineContainer: document.getElementById('simplified-timeline-container'),
+    simplifiedTimelineContent: document.getElementById('simplified-timeline-content'),
+    simplifiedTimelineDuration: document.getElementById('simplified-timeline-duration'),
     breakdownPrompt: document.getElementById('breakdown-prompt'),
     breakdownContent: document.getElementById('breakdown-content'),
     breakdownAbilityName: document.getElementById('breakdown-ability-name'),
@@ -289,6 +294,7 @@ function initFilters() {
 
     // Timeline tab filter
     elements.timelineEventFilter.addEventListener('change', applyTimelineFilters);
+    elements.timelineSimplifiedToggle.addEventListener('change', applyTimelineFilters);
 
     // Global show unknown filter (affects abilities, debuffs, timeline)
     elements.showUnknownFilter.addEventListener('change', applyAllFilters);
@@ -327,6 +333,7 @@ function clearTabFilters(tab) {
             break;
         case 'timeline':
             elements.timelineEventFilter.value = '';
+            elements.timelineSimplifiedToggle.checked = false;
             applyTimelineFilters();
             break;
     }
@@ -358,7 +365,18 @@ function applyTimelineFilters() {
     if (!attemptData) return;
     const eventTypeFilter = elements.timelineEventFilter.value;
     const showUnknown = elements.showUnknownFilter.checked;
-    renderTimeline(attemptData, showUnknown, eventTypeFilter);
+    const isSimplified = elements.timelineSimplifiedToggle.checked;
+
+    if (isSimplified) {
+        elements.timelineContainer.style.display = 'none';
+        elements.simplifiedTimelineContainer.style.display = 'block';
+        // Simplified view respects showUnknown but not event type filter
+        renderSimplifiedTimeline(attemptData, showUnknown);
+    } else {
+        elements.timelineContainer.style.display = 'block';
+        elements.simplifiedTimelineContainer.style.display = 'none';
+        renderTimeline(attemptData, showUnknown, eventTypeFilter);
+    }
 }
 
 function applyAllFilters() {
@@ -723,7 +741,8 @@ async function loadAttemptDetails(fightId, attemptNumber) {
     renderAbilitiesTable(data.ability_hits, elements.abilitiesPlayerFilter.value, elements.abilitiesAbilityFilter.value, showUnknown);
     renderDebuffsTable(data.debuffs_applied, elements.debuffsPlayerFilter.value, elements.debuffsDebuffFilter.value, showUnknown);
     renderDeathsTable(data.deaths, elements.deathsPlayerFilter.value);
-    renderTimeline(data, showUnknown, elements.timelineEventFilter.value);
+    // Use applyTimelineFilters to respect simplified view toggle
+    applyTimelineFilters();
 
     // Breakdown tabs use their own dedicated dropdowns
     renderAbilityBreakdown(elements.breakdownAbilityFilter.value);
@@ -1339,6 +1358,167 @@ function finalizeGroup(group) {
         group.rounds = 1;
         group.isMultiRound = false;
         group.displayTargets = Array.from(group.uniqueTargets);
+    }
+}
+
+// Render simplified timeline - 3 columns (Abilities, Debuffs, Deaths) by timestamp
+function renderSimplifiedTimeline(data, showUnknown = false) {
+    elements.simplifiedTimelineDuration.textContent = formatDuration(data.duration_seconds);
+
+    // Collect all events grouped by timestamp (floored to seconds)
+    const eventsByTime = new Map();
+
+    // Helper to add event to a timestamp
+    const addEvent = (time, type, name, sourceType = null) => {
+        const timeKey = Math.floor(time);
+        if (!eventsByTime.has(timeKey)) {
+            eventsByTime.set(timeKey, { abilities: [], debuffs: [], deaths: [] });
+        }
+        const events = eventsByTime.get(timeKey);
+
+        if (type === 'ability') {
+            // Check if ability already exists at this timestamp
+            const existing = events.abilities.find(e => e.name === name);
+            if (existing) {
+                existing.count++;
+            } else {
+                events.abilities.push({ name, count: 1 });
+            }
+        } else if (type === 'debuff') {
+            const existing = events.debuffs.find(e => e.name === name);
+            if (existing) {
+                existing.count++;
+            } else {
+                events.debuffs.push({ name, count: 1, sourceType });
+            }
+        } else if (type === 'death') {
+            // For deaths, name is the player who died
+            events.deaths.push({ name, count: 1 });
+        }
+    };
+
+    // Filter abilities based on showUnknown setting
+    let abilities = data.ability_hits;
+    if (!showUnknown) {
+        abilities = abilities.filter(a => !a.ability_name.toLowerCase().includes('unknown'));
+    }
+
+    // Filter debuffs based on showUnknown setting
+    let debuffs = data.debuffs_applied;
+    if (!showUnknown) {
+        debuffs = debuffs.filter(d => !d.effect_name.toLowerCase().includes('unknown'));
+    }
+
+    // Add abilities (simplified: just ability name)
+    abilities.forEach(a => {
+        addEvent(a.relative_time_seconds, 'ability', a.ability_name);
+    });
+
+    // Add debuffs (simplified: just debuff name)
+    debuffs.forEach(d => {
+        addEvent(d.relative_time_seconds, 'debuff', d.effect_name, d.source_type);
+    });
+
+    // Add deaths (simplified: just player name)
+    data.deaths.forEach(d => {
+        addEvent(d.relative_time_seconds, 'death', d.player_name);
+    });
+
+    // Sort timestamps
+    const sortedTimes = Array.from(eventsByTime.keys()).sort((a, b) => a - b);
+
+    // Build the 3-column layout
+    let html = `
+        <div class="simplified-column abilities">
+            <div class="simplified-column-header">Abilities</div>
+            <div class="simplified-events-list">
+    `;
+
+    // Build rows for each timestamp
+    sortedTimes.forEach(time => {
+        const events = eventsByTime.get(time);
+        const timeStr = formatRelativeTime(time);
+
+        // Abilities column events
+        if (events.abilities.length > 0) {
+            events.abilities.forEach(evt => {
+                html += `
+                    <div class="simplified-event-row">
+                        <span class="simplified-time">${timeStr}</span>
+                        <div class="simplified-event-cell ability">
+                            <span class="simplified-event-name">${evt.name}</span>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+    });
+
+    html += `
+            </div>
+        </div>
+        <div class="simplified-column debuffs">
+            <div class="simplified-column-header">Debuffs</div>
+            <div class="simplified-events-list">
+    `;
+
+    // Debuffs column
+    sortedTimes.forEach(time => {
+        const events = eventsByTime.get(time);
+        const timeStr = formatRelativeTime(time);
+
+        if (events.debuffs.length > 0) {
+            events.debuffs.forEach(evt => {
+                const sourceClass = evt.sourceType === 'environment' ? 'source-environment' : '';
+                html += `
+                    <div class="simplified-event-row">
+                        <span class="simplified-time">${timeStr}</span>
+                        <div class="simplified-event-cell debuff ${sourceClass}">
+                            <span class="simplified-event-name">${evt.name}</span>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+    });
+
+    html += `
+            </div>
+        </div>
+        <div class="simplified-column deaths">
+            <div class="simplified-column-header">Deaths</div>
+            <div class="simplified-events-list">
+    `;
+
+    // Deaths column
+    sortedTimes.forEach(time => {
+        const events = eventsByTime.get(time);
+        const timeStr = formatRelativeTime(time);
+
+        if (events.deaths.length > 0) {
+            events.deaths.forEach(evt => {
+                html += `
+                    <div class="simplified-event-row">
+                        <span class="simplified-time">${timeStr}</span>
+                        <div class="simplified-event-cell death">
+                            <span class="simplified-event-name">${evt.name}</span>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+    });
+
+    html += `
+            </div>
+        </div>
+    `;
+
+    elements.simplifiedTimelineContent.innerHTML = html;
+
+    // Handle empty state
+    if (sortedTimes.length === 0) {
+        elements.simplifiedTimelineContent.innerHTML = '<div class="empty-state">No events</div>';
     }
 }
 
