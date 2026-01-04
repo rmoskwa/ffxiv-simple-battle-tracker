@@ -269,6 +269,28 @@ class FightAttempt:
                 # No damage, no unmitigated damage
                 hit.unmitigated_damage = 0
 
+    def resolve_hit_types(self) -> None:
+        """Resolve hit types (Physical/Magical) for all ability hits.
+
+        This method fetches attack type data from XIVAPI for any abilities
+        not already in the cache, then updates each AbilityHit's hit_type field.
+        """
+        # Import here to avoid circular imports
+        from ..data.xivapi_cache import fetch_hit_types
+
+        # Collect unique ability IDs
+        unique_ids = list({hit.ability_id for hit in self.ability_hits})
+
+        if not unique_ids:
+            return
+
+        # Fetch hit types (uses cache, only queries XIVAPI for missing)
+        hit_types = fetch_hit_types(unique_ids)
+
+        # Update each hit
+        for hit in self.ability_hits:
+            hit.hit_type = hit_types.get(hit.ability_id.upper(), "Unknown")
+
     def _add_relative_time(self, event_dict: dict, event_timestamp: datetime) -> dict:
         """Add relative time (seconds from first damage) to an event dict."""
         relative_seconds = (event_timestamp - self.timeline_start).total_seconds()

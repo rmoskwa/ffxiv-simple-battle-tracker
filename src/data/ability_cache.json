@@ -1,0 +1,302 @@
+{
+  "780D": {
+    "name": "Immortal's Obol",
+    "attack_type_id": 3,
+    "attack_type_name": "打"
+  },
+  "7812": {
+    "name": "Static Moon",
+    "attack_type_id": 5,
+    "attack_type_name": "魔法"
+  },
+  "781B": {
+    "name": "Hemitheos's Aero III",
+    "attack_type_id": 5,
+    "attack_type_name": "魔法"
+  },
+  "781C": {
+    "name": "Hemitheos's Holy III",
+    "attack_type_id": 5,
+    "attack_type_name": "魔法"
+  },
+  "7822": {
+    "name": "Bough of Attis",
+    "attack_type_id": 3,
+    "attack_type_name": "打"
+  },
+  "7830": {
+    "name": "Blades of Attis",
+    "attack_type_id": 5,
+    "attack_type_name": "魔法"
+  },
+  "7832": {
+    "name": "Hemitheos's Holy",
+    "attack_type_id": 5,
+    "attack_type_name": "魔法"
+  },
+  "7837": {
+    "name": "Dispersed Aero II",
+    "attack_type_id": 5,
+    "attack_type_name": "魔法"
+  },
+  "7839": {
+    "name": "Spark of Life",
+    "attack_type_id": 5,
+    "attack_type_name": "魔法"
+  },
+  "783B": {
+    "name": "Hemitheos's Holy III",
+    "attack_type_id": 5,
+    "attack_type_name": "魔法"
+  },
+  "7A0B": {
+    "name": "Hemitheos's Aero IV",
+    "attack_type_id": 5,
+    "attack_type_name": "魔法"
+  },
+  "7814": {
+    "name": "Static Path",
+    "attack_type_id": 5,
+    "attack_type_name": "魔法"
+  },
+  "7815": {
+    "name": "Stymphalian Strike",
+    "attack_type_id": 3,
+    "attack_type_name": "打"
+  },
+  "7817": {
+    "name": "Bullish Slash",
+    "attack_type_id": 3,
+    "attack_type_name": "打"
+  },
+  "7827": {
+    "name": "Bough of Attis",
+    "attack_type_id": 3,
+    "attack_type_name": "打"
+  },
+  "7834": {
+    "name": "Hemitheos's Aero IV",
+    "attack_type_id": 5,
+    "attack_type_name": "魔法"
+  },
+  "7838": {
+    "name": "Condensed Aero II",
+    "attack_type_id": 5,
+    "attack_type_name": "魔法"
+  },
+  "7816": {
+    "name": "Bronze Bellows",
+    "attack_type_id": 3,
+    "attack_type_name": "打"
+  },
+  "781F": {
+    "name": "Hemitheos's Tornado",
+    "attack_type_id": 5,
+    "attack_type_name": "魔法"
+  },
+  "7820": {
+    "name": "Hemitheos's Glare III",
+    "attack_type_id": 5,
+    "attack_type_name": "魔法"
+  },
+  "7825": {
+    "name": "Bough of Attis",
+    "attack_type_id": 3,
+    "attack_type_name": "打"
+  },
+  "782C": {
+    "name": "Burst",
+    "attack_type_id": 5,
+    "attack_type_name": "魔法"
+  },
+  "7819": {
+    "name": "Bullish Swipe",
+    "attack_type_id": 3,
+    "attack_type_name": "打"
+  },
+  "78E2": {
+    "name": "Light of Life",
+    "attack_type_id": 5,
+    "attack_type_name": "魔法"
+  },
+  "72C2": {
+    "name": "",
+    "attack_type_id": 5,
+    "attack_type_name": "魔法"
+  },
+  "72CE": {
+    "name": "Hemitheos's Flare",
+    "attack_type_id": 5,
+    "attack_type_name": "魔法"
+  },
+  "7918": {
+    "name": "Emergent Octaflare",
+    "attack_type_id": 5,
+    "attack_type_name": "魔法"
+  },
+  "7919": {
+    "name": "Emergent Tetraflare",
+    "attack_type_id": 5,
+    "attack_type_name": "魔法"
+  },
+  "7920": {
+    "name": "Nest of Flamevipers",
+    "attack_type_id": 5,
+    "attack_type_name": "魔法"
+  },
+  "7929": {
+    "name": "Snaking Kick",
+    "attack_type_id": 3,
+    "attack_type_name": "打"
+  },
+  "792C": {
+    "name": "Gorgoneion",
+    "attack_type_id": 5,
+    "attack_type_name": "魔法"
+  },
+  "792F": {
+    "name": "Blood of the Gorgon",
+    "attack_type_id": 5,
+    "attack_type_name": "魔法"
+  },
+  "7944": {
+    "name": "Genesis of Flame",
+    "attack_type_id": 5,
+    "attack_type_name": "魔法"
+  },
+  "7945": {
+    "name": "Flameviper",
+    "attack_type_id": 5,
+    "attack_type_name": "魔法"
+  },
+  "7946": {
+    "name": "Flameviper",
+    "attack_type_id": 5,
+    "attack_type_name": "魔法"
+  },
+  "7947": {
+    "name": "",
+    "attack_type_id": 5,
+    "attack_type_name": "魔法"
+  },
+  "7949": {
+    "name": "",
+    "attack_type_id": 3,
+    "attack_type_name": "打"
+  },
+  "79EA": {
+    "name": "Ektothermos",
+    "attack_type_id": 5,
+    "attack_type_name": "魔法"
+  },
+  "75EC": {
+    "name": "Forcible Failure",
+    "attack_type_id": 5,
+    "attack_type_name": "魔法"
+  },
+  "79BF": {
+    "name": "Forcible Fire III",
+    "attack_type_id": 5,
+    "attack_type_name": "魔法"
+  },
+  "79C0": {
+    "name": "Forcible Fire II",
+    "attack_type_id": 5,
+    "attack_type_name": "魔法"
+  },
+  "79DE": {
+    "name": "Tyrant's Unholy Darkness",
+    "attack_type_id": 5,
+    "attack_type_name": "魔法"
+  },
+  "79DF": {
+    "name": "Aioniopyr",
+    "attack_type_id": 5,
+    "attack_type_name": "魔法"
+  },
+  "7A8B": {
+    "name": "End of Days",
+    "attack_type_id": 5,
+    "attack_type_name": "魔法"
+  },
+  "79BD": {
+    "name": "Forcible Trifire",
+    "attack_type_id": 5,
+    "attack_type_name": "魔法"
+  },
+  "79BE": {
+    "name": "Forcible Difreeze",
+    "attack_type_id": 5,
+    "attack_type_name": "魔法"
+  },
+  "710A": {
+    "name": "High Concept",
+    "attack_type_id": 5,
+    "attack_type_name": "魔法"
+  },
+  "79AD": {
+    "name": "Conceptual Shift",
+    "attack_type_id": 5,
+    "attack_type_name": "魔法"
+  },
+  "79AE": {
+    "name": "Conceptual Shift",
+    "attack_type_id": 5,
+    "attack_type_name": "魔法"
+  },
+  "79AF": {
+    "name": "Conceptual Shift",
+    "attack_type_id": 5,
+    "attack_type_name": "魔法"
+  },
+  "79B1": {
+    "name": "Failure of Imagination",
+    "attack_type_id": 5,
+    "attack_type_name": "魔法"
+  },
+  "79B3": {
+    "name": "Splicer",
+    "attack_type_id": 5,
+    "attack_type_name": "魔法"
+  },
+  "79B4": {
+    "name": "Splicer",
+    "attack_type_id": 5,
+    "attack_type_name": "魔法"
+  },
+  "79B7": {
+    "name": "Arcane Channel",
+    "attack_type_id": 5,
+    "attack_type_name": "魔法"
+  },
+  "79B8": {
+    "name": "Arcane Wave",
+    "attack_type_id": 5,
+    "attack_type_name": "魔法"
+  },
+  "75F0": {
+    "name": "Tyrant's Fire III",
+    "attack_type_id": 5,
+    "attack_type_name": "魔法"
+  },
+  "79D5": {
+    "name": "Burst",
+    "attack_type_id": 5,
+    "attack_type_name": "魔法"
+  },
+  "79D6": {
+    "name": "Big Burst",
+    "attack_type_id": 5,
+    "attack_type_name": "魔法"
+  },
+  "79B2": {
+    "name": "Splicer",
+    "attack_type_id": 5,
+    "attack_type_name": "魔法"
+  },
+  "7A88": {
+    "name": "Tyrant's Flare II",
+    "attack_type_id": 5,
+    "attack_type_name": "魔法"
+  }
+}

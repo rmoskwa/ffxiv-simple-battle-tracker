@@ -8,6 +8,10 @@ from .mitigation_db import (
     get_boss_debuff_by_effect_id,
     get_mitigation_by_effect_id,
 )
+from .xivapi_cache import (
+    fetch_hit_types,
+    get_hit_type,
+)
 
 __all__ = [
     "MITIGATION_BUFFS",
@@ -16,4 +20,6 @@ __all__ = [
     "get_boss_debuff_by_effect_id",
     "MitigationEffect",
     "BossDebuff",
+    "fetch_hit_types",
+    "get_hit_type",
 ]
