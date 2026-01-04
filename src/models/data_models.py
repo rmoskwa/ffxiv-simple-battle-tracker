@@ -23,6 +23,36 @@ class AttemptOutcome(Enum):
 
 
 @dataclass
+class ActiveMitigation:
+    """Represents an active mitigation buff on a player or debuff on a boss.
+
+    Used for tracking mitigation state during combat to calculate unmitigated damage.
+    """
+
+    effect_id: str  # Hex string effect ID
+    effect_name: str
+    target_id: str  # Player ID for buffs, Boss ID for debuffs
+    target_name: str
+    source_id: str
+    source_name: str
+    start_time: datetime
+    duration: float  # Duration in seconds
+    mitigation_percent: float  # The mitigation percentage (e.g., 20 for 20%)
+    is_boss_debuff: bool = False  # True if applied to boss (Reprisal, Feint, Addle)
+
+    @property
+    def end_time(self) -> datetime:
+        """Calculate when this mitigation expires."""
+        from datetime import timedelta
+
+        return self.start_time + timedelta(seconds=self.duration)
+
+    def is_active_at(self, timestamp: datetime) -> bool:
+        """Check if this mitigation is active at the given timestamp."""
+        return self.start_time <= timestamp < self.end_time
+
+
+@dataclass
 class Player:
     """Represents a player in the raid."""
 
@@ -145,6 +175,8 @@ class FightAttempt:
     ability_hits: list[AbilityHit] = field(default_factory=list)
     debuffs_applied: list[DebuffApplied] = field(default_factory=list)
     deaths: list[PlayerDeath] = field(default_factory=list)
+    # Active mitigations during this attempt (for unmitigated damage calculation)
+    active_mitigations: list["ActiveMitigation"] = field(default_factory=list)
 
     @property
     def duration_seconds(self) -> float:
@@ -182,10 +214,60 @@ class FightAttempt:
             result[debuff.target_name].append(debuff)
         return result
 
+    def get_active_mitigations_at(
+        self, timestamp: datetime, player_id: str
+    ) -> list["ActiveMitigation"]:
+        """Get all active mitigations affecting a player at a given timestamp.
+
+        This includes:
+        - Player buffs (mitigations applied directly to the player)
+        - Boss debuffs (mitigations applied to the boss that reduce damage dealt)
+
+        Args:
+            timestamp: The time to check for active mitigations
+            player_id: The player ID to check mitigations for
+
+        Returns:
+            List of ActiveMitigation objects that are active at the timestamp
+        """
+        active = []
+        for mit in self.active_mitigations:
+            if mit.is_active_at(timestamp):
+                # Include player buffs that target this player
+                if not mit.is_boss_debuff and mit.target_id == player_id:
+                    active.append(mit)
+                # Include all boss debuffs (they affect all player damage taken)
+                elif mit.is_boss_debuff:
+                    active.append(mit)
+        return active
+
     @property
     def timeline_start(self) -> datetime:
         """Get the reference time for timeline (first damage or start time)."""
         return self.first_damage_time if self.first_damage_time else self.start_time
+
+    def calculate_unmitigated_damage(self) -> None:
+        """Calculate unmitigated damage for all ability hits in this attempt.
+
+        This method updates each AbilityHit's unmitigated_damage field based on
+        the active mitigations at the time of the hit.
+        """
+        # Import here to avoid circular imports
+        from ..parser.mitigation_calc import calculate_unmitigated_damage
+
+        for hit in self.ability_hits:
+            if hit.damage > 0:
+                # Get active mitigations at the time of this hit
+                active_mits = self.get_active_mitigations_at(
+                    hit.timestamp, hit.target_id
+                )
+                # Calculate unmitigated damage
+                hit.unmitigated_damage = calculate_unmitigated_damage(
+                    hit.damage, active_mits
+                )
+            else:
+                # No damage, no unmitigated damage
+                hit.unmitigated_damage = 0
 
     def _add_relative_time(self, event_dict: dict, event_timestamp: datetime) -> dict:
         """Add relative time (seconds from first damage) to an event dict."""

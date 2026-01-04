@@ -206,13 +206,20 @@ class LogParser:
         if self.state != ParserState.IN_COMBAT:
             return
 
+        # Parse as boss->player debuff (for display in debuffs tab)
         debuff = self.handlers.parse_line_26_buff(fields)
-        if not debuff:
-            return
-
-        # Add to current attempt
-        if self.session.current_attempt:
+        if debuff and self.session.current_attempt:
             self.session.current_attempt.debuffs_applied.append(debuff)
+
+        # Also check for mitigation buffs (player/friendly → player)
+        mitigation_buff = self.handlers.parse_line_26_mitigation_buff(fields)
+        if mitigation_buff and self.session.current_attempt:
+            self.session.current_attempt.active_mitigations.append(mitigation_buff)
+
+        # Also check for boss debuffs (player → boss, like Reprisal)
+        boss_debuff = self.handlers.parse_line_26_boss_debuff(fields)
+        if boss_debuff and self.session.current_attempt:
+            self.session.current_attempt.active_mitigations.append(boss_debuff)
 
     def _handle_actor_control(self, fields: list) -> None:
         """Handle ActorControl (Line 33)."""
@@ -274,6 +281,10 @@ class LogParser:
     def _finalize_attempt(self, end_time: datetime, outcome: AttemptOutcome) -> None:
         """Finalize the current attempt."""
         self.session.finalize_current_attempt(end_time, outcome)
+
+        # Calculate unmitigated damage for all ability hits
+        if self.session.current_attempt:
+            self.session.current_attempt.calculate_unmitigated_damage()
 
         # Notify callback
         if self._on_attempt_complete and self.session.current_attempt:

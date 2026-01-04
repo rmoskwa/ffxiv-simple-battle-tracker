@@ -6,7 +6,16 @@ Each handler parses a specific line type and extracts relevant data.
 from dataclasses import dataclass
 from datetime import datetime
 
-from ..models.data_models import AbilityHit, DebuffApplied, PlayerDeath
+from ..data.mitigation_db import (
+    get_boss_debuff_by_effect_id,
+    get_mitigation_by_effect_id,
+)
+from ..models.data_models import (
+    AbilityHit,
+    ActiveMitigation,
+    DebuffApplied,
+    PlayerDeath,
+)
 from .damage_calc import calculate_damage, is_damage_action, parse_flags
 
 # Known player pet names - these have IDs starting with "40" but are player-controlled
@@ -481,3 +490,119 @@ class LineHandlers:
     def is_recommence_command(data: ActorControlData) -> bool:
         """Check if this ActorControl is a recommence signal."""
         return data.command.upper() == COMMAND_RECOMMENCE.upper()
+
+    @staticmethod
+    def parse_line_26_mitigation_buff(fields: list) -> ActiveMitigation | None:
+        """Parse a Line 26 for player mitigation buffs.
+
+        This captures friendly → player buffs that provide mitigation
+        (e.g., Rampart, Sentinel, Sacred Soil on the player).
+
+        Format: 26|timestamp|effect_id|effect_name|duration|source_id|source_name|
+                target_id|target_name|stack_count|target_max_hp|source_max_hp|hash
+
+        Args:
+            fields: List of pipe-separated fields
+
+        Returns:
+            ActiveMitigation if this is a known mitigation buff, None otherwise
+        """
+        if len(fields) < 10:
+            return None
+
+        effect_id = fields[2].upper()
+        effect_name = fields[3]
+        duration_str = fields[4]
+        source_id = fields[5]
+        target_id = fields[7]
+        target_name = fields[8]
+
+        # Only process player → player or friendly → player buffs
+        # (source is player, target is player)
+        if not is_player_id(target_id):
+            return None
+
+        # Check if this effect is a known mitigation buff
+        mitigation = get_mitigation_by_effect_id(effect_id)
+        if not mitigation:
+            return None
+
+        # Parse duration
+        try:
+            duration = float(duration_str)
+        except (ValueError, TypeError):
+            duration = 0.0
+
+        # Skip zero-duration buffs (they're not real mitigations)
+        if duration <= 0:
+            return None
+
+        return ActiveMitigation(
+            effect_id=effect_id,
+            effect_name=effect_name or mitigation.name,
+            target_id=target_id,
+            target_name=target_name,
+            source_id=source_id,
+            source_name=fields[6],
+            start_time=parse_timestamp(fields[1]),
+            duration=duration,
+            mitigation_percent=mitigation.mitigation_percent,
+            is_boss_debuff=False,
+        )
+
+    @staticmethod
+    def parse_line_26_boss_debuff(fields: list) -> ActiveMitigation | None:
+        """Parse a Line 26 for boss debuffs (mitigations applied TO the boss).
+
+        This captures player → boss debuffs that reduce boss damage output
+        (e.g., Reprisal, Feint, Addle applied to the boss).
+
+        Format: 26|timestamp|effect_id|effect_name|duration|source_id|source_name|
+                target_id|target_name|stack_count|target_max_hp|source_max_hp|hash
+
+        Args:
+            fields: List of pipe-separated fields
+
+        Returns:
+            ActiveMitigation if this is a known boss debuff, None otherwise
+        """
+        if len(fields) < 10:
+            return None
+
+        effect_id = fields[2].upper()
+        effect_name = fields[3]
+        duration_str = fields[4]
+        source_id = fields[5]
+        target_id = fields[7]
+        target_name = fields[8]
+
+        # Only process player → enemy debuffs
+        if not is_player_id(source_id) or not is_enemy_id(target_id):
+            return None
+
+        # Check if this effect is a known boss debuff (Reprisal, Feint, Addle, etc.)
+        debuff = get_boss_debuff_by_effect_id(effect_id)
+        if not debuff:
+            return None
+
+        # Parse duration
+        try:
+            duration = float(duration_str)
+        except (ValueError, TypeError):
+            duration = 0.0
+
+        if duration <= 0:
+            return None
+
+        return ActiveMitigation(
+            effect_id=effect_id,
+            effect_name=effect_name or debuff.name,
+            target_id=target_id,
+            target_name=target_name,
+            source_id=source_id,
+            source_name=fields[6],
+            start_time=parse_timestamp(fields[1]),
+            duration=duration,
+            mitigation_percent=debuff.mitigation_percent,
+            is_boss_debuff=True,
+        )
