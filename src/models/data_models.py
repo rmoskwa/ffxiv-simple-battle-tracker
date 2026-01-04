@@ -261,9 +261,9 @@ class FightAttempt:
                 active_mits = self.get_active_mitigations_at(
                     hit.timestamp, hit.target_id
                 )
-                # Calculate unmitigated damage
+                # Calculate unmitigated damage (pass hit_type for accurate mitigation)
                 hit.unmitigated_damage = calculate_unmitigated_damage(
-                    hit.damage, active_mits
+                    hit.damage, active_mits, hit.hit_type
                 )
             else:
                 # No damage, no unmitigated damage

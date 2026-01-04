@@ -298,5 +298,290 @@
     "name": "Tyrant's Flare II",
     "attack_type_id": 5,
     "attack_type_name": "魔法"
+  },
+  "26A7": {
+    "name": "",
+    "attack_type_id": 1,
+    "attack_type_name": "斬"
+  },
+  "26A8": {
+    "name": "Plummet",
+    "attack_type_id": 3,
+    "attack_type_name": "打"
+  },
+  "26A9": {
+    "name": "Death Sentence",
+    "attack_type_id": 1,
+    "attack_type_name": "斬"
+  },
+  "26AC": {
+    "name": "Fireball",
+    "attack_type_id": 5,
+    "attack_type_name": "魔法"
+  },
+  "26AD": {
+    "name": "Liquid Hell",
+    "attack_type_id": 5,
+    "attack_type_name": "魔法"
+  },
+  "26AF": {
+    "name": "Hatch",
+    "attack_type_id": 5,
+    "attack_type_name": "魔法"
+  },
+  "26B0": {
+    "name": "Deep Hatch",
+    "attack_type_id": 5,
+    "attack_type_name": "魔法"
+  },
+  "26B4": {
+    "name": "",
+    "attack_type_id": 2,
+    "attack_type_name": "突"
+  },
+  "26B5": {
+    "name": "Bahamut's Claw",
+    "attack_type_id": 2,
+    "attack_type_name": "突"
+  },
+  "26B6": {
+    "name": "Ravensbeak",
+    "attack_type_id": 2,
+    "attack_type_name": "突"
+  },
+  "26B8": {
+    "name": "Heavensfall",
+    "attack_type_id": 5,
+    "attack_type_name": "魔法"
+  },
+  "26B9": {
+    "name": "Thermionic Burst",
+    "attack_type_id": 5,
+    "attack_type_name": "魔法"
+  },
+  "26BD": {
+    "name": "Thermionic Beam",
+    "attack_type_id": 5,
+    "attack_type_name": "魔法"
+  },
+  "26BE": {
+    "name": "Raven Dive",
+    "attack_type_id": 2,
+    "attack_type_name": "突"
+  },
+  "26BF": {
+    "name": "Hypernova",
+    "attack_type_id": 5,
+    "attack_type_name": "魔法"
+  },
+  "26C0": {
+    "name": "Meteor Stream",
+    "attack_type_id": 2,
+    "attack_type_name": "突"
+  },
+  "26C1": {
+    "name": "Dalamud Dive",
+    "attack_type_id": 2,
+    "attack_type_name": "突"
+  },
+  "26C5": {
+    "name": "Fireball",
+    "attack_type_id": 5,
+    "attack_type_name": "魔法"
+  },
+  "26C6": {
+    "name": "Iceball",
+    "attack_type_id": 5,
+    "attack_type_name": "魔法"
+  },
+  "26C7": {
+    "name": "Chain Lightning",
+    "attack_type_id": 5,
+    "attack_type_name": "魔法"
+  },
+  "26C8": {
+    "name": "Chain Lightning",
+    "attack_type_id": 5,
+    "attack_type_name": "魔法"
+  },
+  "26D0": {
+    "name": "",
+    "attack_type_id": 1,
+    "attack_type_name": "斬"
+  },
+  "26D1": {
+    "name": "Seventh Umbral Era",
+    "attack_type_id": 5,
+    "attack_type_name": "魔法"
+  },
+  "26D2": {
+    "name": "Calamitous Flame",
+    "attack_type_id": 5,
+    "attack_type_name": "魔法"
+  },
+  "26D3": {
+    "name": "Calamitous Blaze",
+    "attack_type_id": 5,
+    "attack_type_name": "魔法"
+  },
+  "26D4": {
+    "name": "Flare Breath",
+    "attack_type_id": 5,
+    "attack_type_name": "魔法"
+  },
+  "26D5": {
+    "name": "Flatten",
+    "attack_type_id": 3,
+    "attack_type_name": "打"
+  },
+  "26D6": {
+    "name": "Gigaflare",
+    "attack_type_id": 5,
+    "attack_type_name": "魔法"
+  },
+  "26D7": {
+    "name": "Tempest Wing",
+    "attack_type_id": 5,
+    "attack_type_name": "魔法"
+  },
+  "26DA": {
+    "name": "Earth Shaker",
+    "attack_type_id": 3,
+    "attack_type_name": "打"
+  },
+  "26DC": {
+    "name": "Megaflare",
+    "attack_type_id": 5,
+    "attack_type_name": "魔法"
+  },
+  "26DE": {
+    "name": "Megaflare",
+    "attack_type_id": 5,
+    "attack_type_name": "魔法"
+  },
+  "26DF": {
+    "name": "Megaflare",
+    "attack_type_id": 5,
+    "attack_type_name": "魔法"
+  },
+  "26E0": {
+    "name": "Megaflare Strike",
+    "attack_type_id": 5,
+    "attack_type_name": "魔法"
+  },
+  "26AB": {
+    "name": "Twister",
+    "attack_type_id": 5,
+    "attack_type_name": "魔法"
+  },
+  "26BC": {
+    "name": "Lunar Dynamo",
+    "attack_type_id": 5,
+    "attack_type_name": "魔法"
+  },
+  "26B1": {
+    "name": "Aetheric Profusion",
+    "attack_type_id": 5,
+    "attack_type_name": "魔法"
+  },
+  "26BB": {
+    "name": "Iron Chariot",
+    "attack_type_id": 1,
+    "attack_type_name": "斬"
+  },
+  "26DD": {
+    "name": "Megaflare",
+    "attack_type_id": 5,
+    "attack_type_name": "魔法"
+  },
+  "189A": {
+    "name": "the Scarlet Whisper",
+    "attack_type_id": 5,
+    "attack_type_name": "魔法"
+  },
+  "189B": {
+    "name": "Deafening Bellow",
+    "attack_type_id": 5,
+    "attack_type_name": "魔法"
+  },
+  "189C": {
+    "name": "Cauterize",
+    "attack_type_id": 5,
+    "attack_type_name": "魔法"
+  },
+  "189D": {
+    "name": "Touchdown",
+    "attack_type_id": 3,
+    "attack_type_name": "打"
+  },
+  "189E": {
+    "name": "Horrid Roar",
+    "attack_type_id": 5,
+    "attack_type_name": "魔法"
+  },
+  "18A1": {
+    "name": "Electric Predation",
+    "attack_type_id": 5,
+    "attack_type_name": "魔法"
+  },
+  "18A2": {
+    "name": "the Serpent's Apple",
+    "attack_type_id": 3,
+    "attack_type_name": "打"
+  },
+  "18A4": {
+    "name": "Final Chorus",
+    "attack_type_id": 6,
+    "attack_type_name": "ブレス"
+  },
+  "18A7": {
+    "name": "High Jump",
+    "attack_type_id": 5,
+    "attack_type_name": "魔法"
+  },
+  "18A8": {
+    "name": "Geirskogul",
+    "attack_type_id": 5,
+    "attack_type_name": "魔法"
+  },
+  "18A9": {
+    "name": "Ala Morn",
+    "attack_type_id": 2,
+    "attack_type_name": "突"
+  },
+  "18AA": {
+    "name": "Drachenlance",
+    "attack_type_id": 2,
+    "attack_type_name": "突"
+  },
+  "18AB": {
+    "name": "Akh Morn",
+    "attack_type_id": 5,
+    "attack_type_name": "魔法"
+  },
+  "18AC": {
+    "name": "Akh Morn",
+    "attack_type_id": 5,
+    "attack_type_name": "魔法"
+  },
+  "18AD": {
+    "name": "Flame Blast",
+    "attack_type_id": 5,
+    "attack_type_name": "魔法"
+  },
+  "18AE": {
+    "name": "Super Jump",
+    "attack_type_id": 5,
+    "attack_type_name": "魔法"
+  },
+  "18B0": {
+    "name": "Mortal Chorus",
+    "attack_type_id": 6,
+    "attack_type_name": "ブレス"
+  },
+  "196B": {
+    "name": "Bloodrage",
+    "attack_type_id": 5,
+    "attack_type_name": "魔法"
   }
 }

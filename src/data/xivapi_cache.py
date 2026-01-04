@@ -167,6 +167,9 @@ class XIVAPICache:
                 data = json.loads(response.read())
 
             for item in data.get("Results", []):
+                # Skip non-dict items (XIVAPI returns `false` for invalid IDs)
+                if not isinstance(item, dict):
+                    continue
                 decimal_id = item.get("ID")
                 if decimal_id is None:
                     continue

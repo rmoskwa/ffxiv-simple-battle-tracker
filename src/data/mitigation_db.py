@@ -521,3 +521,63 @@ def get_party_wide_mitigations() -> list[MitigationEffect]:
         List of MitigationEffect objects that affect the whole party
     """
     return [m for m in MITIGATION_BUFFS.values() if m.is_party_wide]
+
+
+def get_effective_mitigation_percent(
+    effect_id: str, hit_type: str | None, is_boss_debuff: bool = False
+) -> float:
+    """Get the effective mitigation percentage based on hit type.
+
+    Some mitigations like Feint and Addle have different values for
+    physical vs magical damage. This function returns the correct value.
+
+    Args:
+        effect_id: Hex string effect ID (case-insensitive)
+        hit_type: The damage type ("Physical", "Magical", or None/Unknown)
+        is_boss_debuff: True if this is a boss debuff, False for player buff
+
+    Returns:
+        The effective mitigation percentage for the given damage type
+    """
+    effect_id_upper = effect_id.upper()
+
+    if is_boss_debuff:
+        debuff = BOSS_DEBUFFS.get(effect_id_upper)
+        if not debuff:
+            return 0.0
+
+        # Handle Feint (4AB) - 10% physical, 5% magical
+        if effect_id_upper == "4AB":
+            if hit_type == "Magical":
+                return FEINT_MAGIC_MITIGATION  # 5%
+            return debuff.mitigation_percent  # 10% for physical/unknown
+
+        # Handle Addle (4B3) - 10% magical, 5% physical
+        if effect_id_upper == "4B3":
+            if hit_type == "Physical":
+                return ADDLE_PHYSICAL_MITIGATION  # 5%
+            return debuff.mitigation_percent  # 10% for magical/unknown
+
+        # For other boss debuffs, check if they're type-specific
+        if debuff.damage_type != "all" and hit_type:
+            # If the debuff only affects one type and hit is different, no effect
+            if debuff.damage_type == "physical" and hit_type == "Magical":
+                return 0.0
+            if debuff.damage_type == "magic" and hit_type == "Physical":
+                return 0.0
+
+        return debuff.mitigation_percent
+
+    else:
+        buff = MITIGATION_BUFFS.get(effect_id_upper)
+        if not buff:
+            return 0.0
+
+        # Check if buff only affects certain damage types
+        if buff.damage_type != "all" and hit_type:
+            if buff.damage_type == "physical" and hit_type == "Magical":
+                return 0.0
+            if buff.damage_type == "magic" and hit_type == "Physical":
+                return 0.0
+
+        return buff.mitigation_percent

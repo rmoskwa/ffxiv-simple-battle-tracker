@@ -282,11 +282,13 @@ class LogParser:
         """Finalize the current attempt."""
         self.session.finalize_current_attempt(end_time, outcome)
 
-        # Calculate unmitigated damage for all ability hits
+        # Process ability hits: first resolve hit types, then calculate unmitigated
         if self.session.current_attempt:
-            self.session.current_attempt.calculate_unmitigated_damage()
-            # Resolve hit types (Physical/Magical) from XIVAPI cache
+            # Resolve hit types (Physical/Magical) from XIVAPI cache FIRST
+            # This is needed for accurate unmitigated damage calculation
             self.session.current_attempt.resolve_hit_types()
+            # Calculate unmitigated damage using hit types for accurate mitigation
+            self.session.current_attempt.calculate_unmitigated_damage()
 
         # Notify callback
         if self._on_attempt_complete and self.session.current_attempt:
