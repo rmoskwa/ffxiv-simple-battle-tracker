@@ -1057,6 +1057,10 @@ function renderAbilitiesTable(abilities, playerFilter, abilityFilter, showUnknow
                     valA = a.damage;
                     valB = b.damage;
                     break;
+                case 'unmitigated':
+                    valA = a.unmitigated_damage || 0;
+                    valB = b.unmitigated_damage || 0;
+                    break;
                 default:
                     return 0;
             }
@@ -1075,13 +1079,20 @@ function renderAbilitiesTable(abilities, playerFilter, abilityFilter, showUnknow
 
     filtered.forEach(ability => {
         const row = document.createElement('tr');
+        // Format unmitigated damage - show N/A if not calculated yet
+        const unmitigatedDisplay = ability.unmitigated_damage
+            ? ability.unmitigated_damage.toLocaleString()
+            : '<span class="not-available">N/A</span>';
+        // Format hit type - show Unknown if not determined yet
+        const hitTypeDisplay = ability.hit_type || '<span class="not-available">Unknown</span>';
+
         row.innerHTML = `
             <td>${formatRelativeTime(ability.relative_time_seconds)}</td>
             <td>${ability.ability_name}</td>
             <td>${ability.target_name}</td>
             <td class="damage-value">${ability.damage.toLocaleString()}</td>
-            <td class="${ability.is_critical ? 'crit-yes' : ''}">${ability.is_critical ? 'Yes' : '-'}</td>
-            <td class="${ability.is_direct_hit ? 'dh-yes' : ''}">${ability.is_direct_hit ? 'Yes' : '-'}</td>
+            <td class="damage-value">${unmitigatedDisplay}</td>
+            <td>${hitTypeDisplay}</td>
         `;
         elements.abilitiesTable.appendChild(row);
     });

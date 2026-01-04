@@ -52,11 +52,12 @@ class AbilityHit:
     target_id: str
     target_name: str
     damage: int
-    flags: str = (
-        ""  # for crit/direct hit info, I don't care about it right now but maybe revist
-    )
+    flags: str = ""
     is_critical: bool = False
     is_direct_hit: bool = False
+    # New fields for unmitigated damage calculation
+    unmitigated_damage: int | None = None  # Calculated from mitigation buffs
+    hit_type: str | None = None  # "Magic", "Physical", or None if unknown
 
     def to_dict(self) -> dict:
         """Convert to dictionary for JSON serialization."""
@@ -72,6 +73,8 @@ class AbilityHit:
             "flags": self.flags,
             "is_critical": self.is_critical,
             "is_direct_hit": self.is_direct_hit,
+            "unmitigated_damage": self.unmitigated_damage,
+            "hit_type": self.hit_type,
         }
 
 

@@ -565,6 +565,11 @@ tbody tr:hover {
     font-weight: 600;
 }
 
+.not-available {
+    color: var(--text-muted);
+    font-style: italic;
+}
+
 /* Table Summary */
 .table-summary {
     margin-top: 1rem;
