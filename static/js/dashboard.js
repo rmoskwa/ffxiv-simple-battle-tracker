@@ -1875,39 +1875,70 @@ function collectOrdinalMatchedEvents(attempts, eventKey, nameKey, showUnknown) {
 
     allNames.forEach(eventName => {
         // Get occurrences per attempt, sorted by time
+        // Now also collect unmitigated damage for abilities
         const occurrencesByAttempt = new Map();
         let maxOrdinal = 0;
 
         attempts.forEach((attempt, attemptIdx) => {
             const events = attempt[eventKey] || [];
-            const rawTimes = events
+            // Get all matching events with time and damage info
+            const matchingEvents = events
                 .filter(e => e[nameKey] === eventName)
-                .map(e => e.relative_time_seconds)
-                .sort((a, b) => a - b);
+                .map(e => ({
+                    time: e.relative_time_seconds,
+                    damage: e.unmitigated_damage || 0  // Only ability_hits have this
+                }))
+                .sort((a, b) => a.time - b.time);
 
             // Deduplicate times within the same second (AoE abilities hit multiple players)
+            // For damage, collect all damages at that second to average later
             const occurrences = [];
             let lastSecond = -1;
-            rawTimes.forEach(time => {
-                const second = Math.floor(time);
+            let currentDamages = [];
+
+            matchingEvents.forEach(evt => {
+                const second = Math.floor(evt.time);
                 if (second !== lastSecond) {
-                    occurrences.push(time);
+                    // Save previous occurrence if exists
+                    if (currentDamages.length > 0 && occurrences.length > 0) {
+                        // Calculate average damage for the previous second
+                        const validDamages = currentDamages.filter(d => d > 0);
+                        occurrences[occurrences.length - 1].avgDamage = validDamages.length > 0
+                            ? Math.round(validDamages.reduce((a, b) => a + b, 0) / validDamages.length)
+                            : 0;
+                    }
+                    // Start new occurrence
+                    occurrences.push({ time: evt.time, avgDamage: 0 });
+                    currentDamages = [evt.damage];
                     lastSecond = second;
+                } else {
+                    // Same second, collect damage
+                    currentDamages.push(evt.damage);
                 }
             });
+
+            // Handle last occurrence
+            if (currentDamages.length > 0 && occurrences.length > 0) {
+                const validDamages = currentDamages.filter(d => d > 0);
+                occurrences[occurrences.length - 1].avgDamage = validDamages.length > 0
+                    ? Math.round(validDamages.reduce((a, b) => a + b, 0) / validDamages.length)
+                    : 0;
+            }
 
             occurrencesByAttempt.set(attemptIdx, occurrences);
             maxOrdinal = Math.max(maxOrdinal, occurrences.length);
         });
 
-        // For each ordinal position, collect times
+        // For each ordinal position, collect times and damages
         for (let ordinal = 0; ordinal < maxOrdinal; ordinal++) {
             const timesAtOrdinal = [];
+            const damagesAtOrdinal = [];
             const attemptsWithOrdinal = [];
 
             occurrencesByAttempt.forEach((occurrences, attemptIdx) => {
                 if (occurrences.length > ordinal) {
-                    timesAtOrdinal.push(occurrences[ordinal]);
+                    timesAtOrdinal.push(occurrences[ordinal].time);
+                    damagesAtOrdinal.push(occurrences[ordinal].avgDamage);
                     attemptsWithOrdinal.push(attemptIdx);
                 }
             });
@@ -1917,6 +1948,7 @@ function collectOrdinalMatchedEvents(attempts, eventKey, nameKey, showUnknown) {
                     name: eventName,
                     ordinal: ordinal + 1,
                     times: timesAtOrdinal,
+                    damages: damagesAtOrdinal,
                     attempts: attemptsWithOrdinal
                 });
             }
@@ -1934,20 +1966,32 @@ function filterByConsensus(events, minAttempts, toleranceSeconds) {
         // Find attempts within tolerance of median
         const withinTolerance = [];
         const timesWithinTolerance = [];
+        const damagesWithinTolerance = [];
 
         event.times.forEach((time, idx) => {
             if (Math.abs(time - medianTime) <= toleranceSeconds) {
                 withinTolerance.push(event.attempts[idx]);
                 timesWithinTolerance.push(time);
+                // Include damage if available (only for abilities)
+                if (event.damages && event.damages[idx] !== undefined) {
+                    damagesWithinTolerance.push(event.damages[idx]);
+                }
             }
         });
+
+        // Calculate average unmitigated damage from valid (non-zero) damages
+        const validDamages = damagesWithinTolerance.filter(d => d > 0);
+        const avgDamage = validDamages.length > 0
+            ? Math.round(validDamages.reduce((a, b) => a + b, 0) / validDamages.length)
+            : 0;
 
         return {
             name: event.name,
             ordinal: event.ordinal,
             medianTime: calculateMedian(timesWithinTolerance),
             consensusCount: withinTolerance.length,
-            attempts: new Set(withinTolerance)
+            attempts: new Set(withinTolerance),
+            avgDamage: avgDamage
         };
     }).filter(event => event.consensusCount >= minAttempts);
 }
@@ -2000,9 +2044,14 @@ function detectChoicePoints(events, toleranceSeconds) {
             // Merge alternatives
             const allTimes = [];
             const allAttempts = new Set();
-            const names = alternatives.map(a => a.name).sort();
 
-            alternatives.forEach(alt => {
+            // Sort alternatives by name to ensure consistent ordering
+            const sortedAlternatives = [...alternatives].sort((a, b) => a.name.localeCompare(b.name));
+            const names = sortedAlternatives.map(a => a.name);
+            // Collect damages in the same order as names
+            const damages = sortedAlternatives.map(a => a.avgDamage || 0);
+
+            sortedAlternatives.forEach(alt => {
                 // We need the original times, but we only have medianTime
                 // Use the median as representative
                 allTimes.push(alt.medianTime);
@@ -2015,12 +2064,31 @@ function detectChoicePoints(events, toleranceSeconds) {
                 medianTime: calculateMedian(allTimes),
                 consensusCount: allAttempts.size,
                 attempts: allAttempts,
-                isChoicePoint: true
+                isChoicePoint: true,
+                // For choice points, store damages array corresponding to each ability name
+                choiceDamages: damages
             });
         }
     }
 
     return merged;
+}
+
+// Format unmitigated damage string for display in estimated timeline
+function formatUnmitigatedDamage(evt) {
+    // Only format for abilities (which have damage data)
+    if (evt.type !== 'ability') return '';
+
+    if (evt.isChoicePoint && evt.choiceDamages) {
+        // For choice points, format as "(U:xxx/U:xxx)" for each ability
+        const damageStrs = evt.choiceDamages.map(d => d > 0 ? `U:${d}` : 'U:?');
+        return ` (${damageStrs.join('/')})`;
+    } else if (evt.avgDamage && evt.avgDamage > 0) {
+        // For single abilities, format as "(U: xxx)"
+        return ` (U: ${evt.avgDamage})`;
+    }
+
+    return '';
 }
 
 // Render the best guess timeline
@@ -2068,11 +2136,12 @@ function renderBestGuessTimeline(events, totalAttempts) {
 
         bucket.abilities.forEach(evt => {
             const choiceClass = evt.isChoicePoint ? 'choice-point' : '';
+            const damageStr = formatUnmitigatedDamage(evt);
             html += `
                 <div class="simplified-event-row">
                     <span class="simplified-time">${timeStr}</span>
                     <div class="simplified-event-cell ability ${choiceClass}">
-                        <span class="simplified-event-name">${evt.name}</span>
+                        <span class="simplified-event-name">${evt.name}${damageStr}</span>
                     </div>
                 </div>
             `;
