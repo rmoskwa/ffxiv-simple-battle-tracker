@@ -12,7 +12,7 @@ from .damage_calc import calculate_damage, is_damage_action, parse_flags
 
 
 # Known player pet names - these have IDs starting with "40" but are player-controlled
-# and should be excluded from boss debuff tracking
+# and should be excluded from boss debuff tracking. Hardcoded list for now, not sure if there are others.
 PLAYER_PET_NAMES = {
     # Scholar pets
     "eos",
@@ -37,7 +37,8 @@ PLAYER_PET_NAMES = {
 }
 
 
-# Job ID to job name mapping (hex string -> job name)
+# Job ID to job name mapping (hex string -> job name). Most are unused, but included for
+# completeness/potential future use.
 JOB_NAMES = {
     "00": "Adventurer",
     # Base classes

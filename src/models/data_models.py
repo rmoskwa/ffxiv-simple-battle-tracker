@@ -53,7 +53,9 @@ class AbilityHit:
     target_id: str
     target_name: str
     damage: int
-    flags: str = ""  # for crit/direct hit info
+    flags: str = (
+        ""  # for crit/direct hit info, I don't care about it right now but maybe revist
+    )
     is_critical: bool = False
     is_direct_hit: bool = False
 

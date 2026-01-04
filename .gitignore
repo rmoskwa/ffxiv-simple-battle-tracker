@@ -1,8 +1,9 @@
 .venv
 rubicante.log
 logGuide.md
-__pychache__/
+__pycache__/
 *.pyc
 .DS_Store
 .claude/
 CLAUDE.md
+*.log

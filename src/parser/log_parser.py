@@ -13,7 +13,8 @@ from ..models.data_models import (
 from .line_handlers import LineHandlers, get_job_name
 
 
-# Known non-combat zones (cities, housing, etc.) - these don't create Fight entries
+# Known non-combat zones (cities, housing, etc.) - these don't create Fight entries.
+# Hard-coded right now because I don't go anywhere else and prototyping currently. TODO: REVISIT and generalize.
 NON_COMBAT_ZONES = {
     "solution nine",
     "limsa lominsa",
