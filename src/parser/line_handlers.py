@@ -5,14 +5,12 @@ Each handler parses a specific line type and extracts relevant data.
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Optional
 
 from ..models.data_models import AbilityHit, DebuffApplied, PlayerDeath
 from .damage_calc import calculate_damage, is_damage_action, parse_flags
 
-
 # Known player pet names - these have IDs starting with "40" but are player-controlled
-# and should be excluded from boss debuff tracking. Hardcoded list for now, not sure if there are others.
+# and should be excluded from boss debuff tracking.
 PLAYER_PET_NAMES = {
     # Scholar pets
     "eos",
@@ -189,7 +187,7 @@ class LineHandlers:
     """Collection of handlers for different log line types."""
 
     @staticmethod
-    def parse_line_01_zone_change(fields: list) -> Optional[ZoneChangeData]:
+    def parse_line_01_zone_change(fields: list) -> ZoneChangeData | None:
         """Parse a zone change line (Line 01).
 
         Format: 01|timestamp|zone_id|zone_name|hash
@@ -210,7 +208,7 @@ class LineHandlers:
         )
 
     @staticmethod
-    def parse_line_03_add_combatant(fields: list) -> Optional[AddCombatantData]:
+    def parse_line_03_add_combatant(fields: list) -> AddCombatantData | None:
         """Parse an AddCombatant line (Line 03).
 
         Format: 03|timestamp|id|name|job|level|...|max_hp|...
@@ -248,7 +246,7 @@ class LineHandlers:
         )
 
     @staticmethod
-    def parse_line_21_22_ability(fields: list) -> Optional[AbilityHit]:
+    def parse_line_21_22_ability(fields: list) -> AbilityHit | None:
         """Parse an ability line (Line 21 single target, Line 22 AOE).
 
         Format: 21|timestamp|source_id|source_name|ability_id|ability_name|
@@ -307,7 +305,7 @@ class LineHandlers:
         )
 
     @staticmethod
-    def parse_player_damage_timestamp(fields: list) -> Optional[datetime]:
+    def parse_player_damage_timestamp(fields: list) -> datetime | None:
         """Check if this is a player->boss damage ability and return timestamp.
 
         Used to detect the first player damage to start the fight timeline.
@@ -336,7 +334,7 @@ class LineHandlers:
         return parse_timestamp(fields[1])
 
     @staticmethod
-    def parse_line_25_death(fields: list) -> Optional[PlayerDeath]:
+    def parse_line_25_death(fields: list) -> PlayerDeath | None:
         """Parse a death line (Line 25).
 
         Format: 25|timestamp|target_id|target_name|source_id|source_name|hash
@@ -368,7 +366,7 @@ class LineHandlers:
         )
 
     @staticmethod
-    def parse_line_26_buff(fields: list) -> Optional[DebuffApplied]:
+    def parse_line_26_buff(fields: list) -> DebuffApplied | None:
         """Parse a buff/debuff application line (Line 26).
 
         Format: 26|timestamp|effect_id|effect_name|duration|source_id|source_name|
@@ -393,7 +391,7 @@ class LineHandlers:
         stack_count_str = fields[9]
 
         # Only process enemy/environment -> player debuffs
-        # E0000000 is the "environment" source for mechanic-based debuffs (e.g., Thunderstruck, Doom, Neurolink)
+        # E0000000 is the "environment" source for mechanic-based debuffs
         is_valid_source = is_enemy_id(source_id) or source_id.upper() == "E0000000"
         if not is_valid_source or not is_player_id(target_id):
             return None
@@ -435,7 +433,7 @@ class LineHandlers:
         )
 
     @staticmethod
-    def parse_line_33_actor_control(fields: list) -> Optional[ActorControlData]:
+    def parse_line_33_actor_control(fields: list) -> ActorControlData | None:
         """Parse an ActorControl line (Line 33).
 
         Format: 33|timestamp|instance|command|data0|data1|data2|data3|hash

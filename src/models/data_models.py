@@ -3,7 +3,6 @@
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Dict, List, Optional
 
 
 class ParserState(Enum):
@@ -136,13 +135,13 @@ class FightAttempt:
 
     attempt_number: int
     start_time: datetime
-    end_time: Optional[datetime] = None
+    end_time: datetime | None = None
     outcome: AttemptOutcome = AttemptOutcome.IN_PROGRESS
     boss_name: str = ""
-    first_damage_time: Optional[datetime] = None  # When first player damage hits boss
-    ability_hits: List[AbilityHit] = field(default_factory=list)
-    debuffs_applied: List[DebuffApplied] = field(default_factory=list)
-    deaths: List[PlayerDeath] = field(default_factory=list)
+    first_damage_time: datetime | None = None  # When first player damage hits boss
+    ability_hits: list[AbilityHit] = field(default_factory=list)
+    debuffs_applied: list[DebuffApplied] = field(default_factory=list)
+    deaths: list[PlayerDeath] = field(default_factory=list)
 
     @property
     def duration_seconds(self) -> float:
@@ -153,27 +152,27 @@ class FightAttempt:
         start = self.first_damage_time if self.first_damage_time else self.start_time
         return (self.end_time - start).total_seconds()
 
-    def get_abilities_by_name(self) -> Dict[str, List[AbilityHit]]:
+    def get_abilities_by_name(self) -> dict[str, list[AbilityHit]]:
         """Group ability hits by ability name."""
-        result: Dict[str, List[AbilityHit]] = {}
+        result: dict[str, list[AbilityHit]] = {}
         for hit in self.ability_hits:
             if hit.ability_name not in result:
                 result[hit.ability_name] = []
             result[hit.ability_name].append(hit)
         return result
 
-    def get_hits_by_player(self) -> Dict[str, List[AbilityHit]]:
+    def get_hits_by_player(self) -> dict[str, list[AbilityHit]]:
         """Group ability hits by target player name."""
-        result: Dict[str, List[AbilityHit]] = {}
+        result: dict[str, list[AbilityHit]] = {}
         for hit in self.ability_hits:
             if hit.target_name not in result:
                 result[hit.target_name] = []
             result[hit.target_name].append(hit)
         return result
 
-    def get_debuffs_by_player(self) -> Dict[str, List[DebuffApplied]]:
+    def get_debuffs_by_player(self) -> dict[str, list[DebuffApplied]]:
         """Group debuffs by target player name."""
-        result: Dict[str, List[DebuffApplied]] = {}
+        result: dict[str, list[DebuffApplied]] = {}
         for debuff in self.debuffs_applied:
             if debuff.target_name not in result:
                 result[debuff.target_name] = []
@@ -234,19 +233,19 @@ class Fight:
     zone_id: str
     zone_name: str
     boss_name: str = ""
-    start_time: Optional[datetime] = None
-    attempts: List[FightAttempt] = field(default_factory=list)
-    players: Dict[str, "Player"] = field(default_factory=dict)
+    start_time: datetime | None = None
+    attempts: list[FightAttempt] = field(default_factory=list)
+    players: dict[str, "Player"] = field(default_factory=dict)
 
     @property
-    def current_attempt(self) -> Optional[FightAttempt]:
+    def current_attempt(self) -> FightAttempt | None:
         """Get the current (most recent) attempt."""
         if self.attempts:
             return self.attempts[-1]
         return None
 
     @property
-    def completed_attempts(self) -> List[FightAttempt]:
+    def completed_attempts(self) -> list[FightAttempt]:
         """Get only completed attempts (excludes in_progress)."""
         return [a for a in self.attempts if a.outcome != AttemptOutcome.IN_PROGRESS]
 
@@ -285,7 +284,7 @@ class Fight:
 
     def get_cross_attempt_stats(self) -> dict:
         """Generate statistics across completed attempts in this fight."""
-        all_deaths: Dict[str, int] = {}  # player -> count
+        all_deaths: dict[str, int] = {}  # player -> count
 
         for attempt in self.completed_attempts:
             for death in attempt.deaths:
@@ -333,9 +332,9 @@ class Fight:
 class RaidSession:
     """Represents a raid session with multiple fights."""
 
-    start_time: Optional[datetime] = None
-    players: Dict[str, Player] = field(default_factory=dict)
-    fights: List[Fight] = field(default_factory=list)
+    start_time: datetime | None = None
+    players: dict[str, Player] = field(default_factory=dict)
+    fights: list[Fight] = field(default_factory=list)
 
     # Legacy properties for backwards compatibility
     @property
@@ -354,22 +353,22 @@ class RaidSession:
         return self.current_fight.boss_name if self.current_fight else ""
 
     @property
-    def attempts(self) -> List[FightAttempt]:
-        """Get all completed attempts across all fights (for backwards compatibility)."""
+    def attempts(self) -> list[FightAttempt]:
+        """Get all completed attempts across all fights."""
         all_attempts = []
         for fight in self.fights:
             all_attempts.extend(fight.completed_attempts)
         return all_attempts
 
     @property
-    def current_fight(self) -> Optional[Fight]:
+    def current_fight(self) -> Fight | None:
         """Get the current (most recent) fight."""
         if self.fights:
             return self.fights[-1]
         return None
 
     @property
-    def current_attempt(self) -> Optional[FightAttempt]:
+    def current_attempt(self) -> FightAttempt | None:
         """Get the current (most recent) attempt."""
         if self.current_fight:
             return self.current_fight.current_attempt
@@ -385,7 +384,7 @@ class RaidSession:
         """Count total number of victories across all fights."""
         return sum(f.total_victories for f in self.fights)
 
-    def get_player_by_id(self, player_id: str) -> Optional[Player]:
+    def get_player_by_id(self, player_id: str) -> Player | None:
         """Look up a player by their ID."""
         return self.players.get(player_id)
 
@@ -421,9 +420,9 @@ class RaidSession:
 
     def get_cross_attempt_stats(self) -> dict:
         """Generate statistics across all completed attempts in all fights."""
-        all_ability_hits: Dict[str, Dict[str, int]] = {}  # ability -> player -> count
-        all_deaths: Dict[str, int] = {}  # player -> count
-        all_debuffs: Dict[str, Dict[str, int]] = {}  # debuff -> player -> count
+        all_ability_hits: dict[str, dict[str, int]] = {}  # ability -> player -> count
+        all_deaths: dict[str, int] = {}  # player -> count
+        all_debuffs: dict[str, dict[str, int]] = {}  # debuff -> player -> count
 
         for fight in self.fights:
             for attempt in fight.completed_attempts:

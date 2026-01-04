@@ -1,7 +1,7 @@
 """Main log parser with state machine for tracking fight attempts."""
 
+from collections.abc import Callable
 from datetime import datetime
-from typing import Callable, Optional
 
 from ..models.data_models import (
     AttemptOutcome,
@@ -12,9 +12,8 @@ from ..models.data_models import (
 )
 from .line_handlers import LineHandlers, get_job_name
 
-
 # Known non-combat zones (cities, housing, etc.) - these don't create Fight entries.
-# Hard-coded right now because I don't go anywhere else and prototyping currently. TODO: REVISIT and generalize.
+# TODO: generalize this list.
 NON_COMBAT_ZONES = {
     "solution nine",
     "limsa lominsa",
@@ -53,9 +52,9 @@ class LogParser:
         self.session = RaidSession()
         self.handlers = LineHandlers()
         self._boss_detected = False
-        self._on_attempt_complete: Optional[Callable[[FightAttempt], None]] = None
-        self._on_state_change: Optional[Callable[[ParserState], None]] = None
-        self._pending_wipe_time: Optional[datetime] = (
+        self._on_attempt_complete: Callable[[FightAttempt], None] | None = None
+        self._on_state_change: Callable[[ParserState], None] | None = None
+        self._pending_wipe_time: datetime | None = (
             None  # Store wipe time until barrier up
         )
         self.lines_processed = 0
@@ -231,7 +230,7 @@ class LogParser:
         elif self.handlers.is_wipe_command(data):
             if self.state == ParserState.IN_COMBAT:
                 self._change_state(ParserState.WIPE_PENDING)
-                # Store wipe time - don't finalize yet, wait for deaths during wipe sequence
+                # Store wipe time - wait for deaths during wipe sequence
                 self._pending_wipe_time = data.timestamp
 
         # Handle victory
@@ -289,7 +288,7 @@ class LogParser:
         Returns:
             The populated RaidSession with all parsed attempts
         """
-        with open(filepath, "r", encoding="utf-8", errors="ignore") as f:
+        with open(filepath, encoding="utf-8", errors="ignore") as f:
             for line in f:
                 self.parse_line(line)
 
@@ -299,7 +298,7 @@ class LogParser:
         """Get the current raid session."""
         return self.session
 
-    def get_current_attempt(self) -> Optional[FightAttempt]:
+    def get_current_attempt(self) -> FightAttempt | None:
         """Get the current fight attempt."""
         return self.session.current_attempt
 

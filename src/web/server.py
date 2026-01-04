@@ -1,12 +1,10 @@
 """Flask web server for FFXIV Battle Tracker dashboard."""
 
 from pathlib import Path
-from typing import Optional
 
 from flask import Flask, jsonify, render_template, request
 
 from ..parser.log_parser import LogParser
-
 
 # Get the project root directory
 PROJECT_ROOT = Path(__file__).parent.parent.parent
@@ -15,7 +13,7 @@ STATIC_DIR = PROJECT_ROOT / "static"
 
 
 def create_app(
-    parser: Optional[LogParser] = None, log_file_path: Optional[str] = None
+    parser: LogParser | None = None, log_file_path: str | None = None
 ) -> Flask:
     """Create and configure the Flask application.
 

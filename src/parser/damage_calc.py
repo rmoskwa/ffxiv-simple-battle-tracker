@@ -4,9 +4,6 @@ Based on the ACT log guide documentation for ability damage decoding.
 The damage value in ability log lines is encoded and needs special handling.
 """
 
-from typing import Tuple
-
-
 # Damage type flags (rightmost byte)
 DAMAGE_FLAG_MISS = 0x01
 DAMAGE_FLAG_DAMAGE = 0x03
@@ -70,14 +67,15 @@ def calculate_damage(damage_str: str) -> int:
     return actual_damage
 
 
-def parse_flags(flags_str: str) -> Tuple[int, bool, bool, bool, bool]:
+def parse_flags(flags_str: str) -> tuple[int, bool, bool, bool, bool]:
     """Parse the flags field from an ability line.
 
     Args:
         flags_str: Hex string of the flags value (e.g., "750003" or "430003")
 
     Returns:
-        Tuple of (damage_type, is_damage, is_critical, is_direct_hit, is_blocked_or_parried)
+        Tuple of (damage_type, is_damage, is_critical, is_direct_hit,
+        is_blocked_or_parried)
     """
     if not flags_str or flags_str == "0":
         return (0, False, False, False, False)
