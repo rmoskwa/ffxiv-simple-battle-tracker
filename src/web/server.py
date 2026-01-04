@@ -196,6 +196,7 @@ def register_routes(app: Flask) -> None:
                             else None,
                             "total_hits": len(attempt.ability_hits),
                             "total_debuffs": len(attempt.debuffs_applied),
+                            "total_targeting": len(attempt.targeting_events),
                             "total_deaths": len(attempt.deaths),
                         }
                     )
@@ -257,6 +258,7 @@ def register_routes(app: Flask) -> None:
                     else None,
                     "total_hits": len(attempt.ability_hits),
                     "total_debuffs": len(attempt.debuffs_applied),
+                    "total_targeting": len(attempt.targeting_events),
                     "total_deaths": len(attempt.deaths),
                 }
             )
@@ -364,6 +366,43 @@ def register_routes(app: Flask) -> None:
             {
                 "debuffs": [d.to_dict() for d in debuffs],
                 "total": len(debuffs),
+            }
+        )
+
+    @app.route("/api/attempts/<int:attempt_num>/targeting")
+    def get_attempt_targeting(attempt_num: int):
+        """Get targeting events for a specific attempt with optional filtering."""
+        parser: LogParser = app.config["parser"]
+        session = parser.get_session()
+
+        # Find the attempt
+        attempt = None
+        for a in session.attempts:
+            if a.attempt_number == attempt_num:
+                attempt = a
+                break
+
+        if not attempt:
+            return jsonify({"error": "Attempt not found"}), 404
+
+        # Get filter parameters
+        player_filter = request.args.get("player")
+        event_filter = request.args.get("event")
+        event_type_filter = request.args.get("event_type")
+
+        # Filter targeting events
+        targeting = attempt.targeting_events
+        if player_filter:
+            targeting = [t for t in targeting if t.target_name == player_filter]
+        if event_filter:
+            targeting = [t for t in targeting if t.ability_name == event_filter]
+        if event_type_filter:
+            targeting = [t for t in targeting if t.event_type == event_type_filter]
+
+        return jsonify(
+            {
+                "targeting": [t.to_dict() for t in targeting],
+                "total": len(targeting),
             }
         )
 

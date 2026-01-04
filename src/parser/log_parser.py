@@ -108,12 +108,16 @@ class LogParser:
             self._handle_zone_change(fields)
         elif line_type == "03":
             self._handle_add_combatant(fields)
+        elif line_type == "20":
+            self._handle_starts_casting(fields)
         elif line_type in ("21", "22"):
             self._handle_ability(fields)
         elif line_type == "25":
             self._handle_death(fields)
         elif line_type == "26":
             self._handle_buff(fields)
+        elif line_type == "27":
+            self._handle_head_marker(fields)
         elif line_type == "33":
             self._handle_actor_control(fields)
         elif line_type == "37":
@@ -247,6 +251,26 @@ class LogParser:
         boss_debuff = self.handlers.parse_line_26_boss_debuff(fields)
         if boss_debuff and self.session.current_attempt:
             self.session.current_attempt.active_mitigations.append(boss_debuff)
+
+    def _handle_starts_casting(self, fields: list) -> None:
+        """Handle StartsCasting (Line 20) for tracking boss->player cast targets."""
+        # Only process in combat
+        if self.state != ParserState.IN_COMBAT:
+            return
+
+        targeting = self.handlers.parse_line_20_starts_casting(fields)
+        if targeting and self.session.current_attempt:
+            self.session.current_attempt.targeting_events.append(targeting)
+
+    def _handle_head_marker(self, fields: list) -> None:
+        """Handle HeadMarker (Line 27) for tracking player head markers."""
+        # Only process in combat
+        if self.state != ParserState.IN_COMBAT:
+            return
+
+        targeting = self.handlers.parse_line_27_head_marker(fields)
+        if targeting and self.session.current_attempt:
+            self.session.current_attempt.targeting_events.append(targeting)
 
     def _handle_effect_result(self, fields: list) -> None:
         """Handle effect result (Line 37).

@@ -15,6 +15,7 @@ from ..models.data_models import (
     ActiveMitigation,
     DebuffApplied,
     PlayerDeath,
+    TargetingEvent,
 )
 from .damage_calc import calculate_damage, is_damage_action, parse_flags
 
@@ -100,6 +101,103 @@ JOB_NAMES = {
     # Limited jobs
     "24": "Blue Mage",
 }
+
+# Head marker ID to name mapping
+# Source: logGuide.md (cactbot documentation) + cactbot fight triggers
+# Note: Since patch 5.2, high-end content uses offset headmarkers where IDs are
+# shifted per-instance. We track raw IDs which are useful for identifying mechanics
+# within a single log/session.
+HEAD_MARKER_NAMES = {
+    # Common mechanics (widely used)
+    "0017": "Spread",
+    "0064": "Stack",
+    "003E": "Stack",
+    "00A1": "Stack",
+    "0048": "Stack",
+    "005D": "Tank Stack",
+    "0057": "Flare",
+    "0028": "Earth Shaker",
+    "004B": "Acceleration Bomb",
+    "0061": "Chain Tether",
+    "0037": "Red Dorito",
+    # Spread circles
+    "0039": "Spread (Purple Large)",
+    "008A": "Spread (Orange Large)",
+    "008B": "Spread (Purple Small)",
+    "0060": "Spread (Orange Small)",
+    "0078": "Spread (Orange Large)",
+    "00A9": "Spread (Orange Small)",
+    "00BD": "Spread (Purple Giant)",
+    "004C": "Purple Fire Circle",
+    # Prey/Target markers
+    "0001": "Prey (Orange)",
+    "0002": "Prey (Orange)",
+    "0004": "Prey (Orange)",
+    "000E": "Prey (Blue)",
+    "001E": "Prey Sphere (Orange)",
+    "001F": "Prey Sphere (Blue)",
+    "005C": "Prey (Dark)",
+    "0076": "Prey (Dark)",
+    "0087": "Prey Sphere (Blue)",
+    # Meteor markers
+    "0007": "Green Meteor",
+    "0008": "Ghost Meteor",
+    "0009": "Red Meteor",
+    "000A": "Yellow Meteor",
+    "015A": "Meteor",
+    # Pinwheels
+    "0046": "Green Pinwheel",
+    "00AE": "Blue Pinwheel",
+    # Limit cut (common in ultimates)
+    "004F": "Limit Cut 1",
+    "0050": "Limit Cut 2",
+    "0051": "Limit Cut 3",
+    "0052": "Limit Cut 4",
+    "0053": "Limit Cut 5",
+    "0054": "Limit Cut 6",
+    "0055": "Limit Cut 7",
+    "0056": "Limit Cut 8",
+    # Misc
+    "000D": "Devour Flower",
+    "0010": "Teal Crystal",
+    "0011": "Heavenly Laser",
+    "001C": "Gravity Puddle",
+    "0032": "Sword Marker 1",
+    "0033": "Sword Marker 2",
+    "0034": "Sword Marker 3",
+    "0035": "Sword Marker 4",
+    "0065": "Spread Bubble",
+    "006E": "Levinbolt",
+    "007B": "Scatter",
+    "007C": "Turn Away",
+    "007E": "Green Crystal",
+    "0083": "Sword Meteor",
+    "008E": "Death From Above",
+    "008F": "Death From Below",
+    "00AB": "Green Poison",
+    "00AC": "Reprobation Tether",
+    "00B9": "Yellow Triangle",
+    "00BA": "Orange Square",
+    "00BB": "Blue Square",
+    "00BF": "Granite Gaol",
+    # Playstation markers (used in TOP, etc.)
+    "01A0": "Circle (Playstation)",
+    "01A1": "Triangle (Playstation)",
+    "01A2": "Square (Playstation)",
+    "01A3": "Cross (Playstation)",
+    # Tank busters
+    "0157": "Tank Buster",
+    "01D4": "Duality of Death",
+    # Other ultimates
+    "014A": "Defamation",
+    "01B3": "Comet Marker",
+}
+
+
+def get_head_marker_name(marker_id: str) -> str:
+    """Get human-readable name for a head marker ID."""
+    marker_id_upper = marker_id.upper()
+    return HEAD_MARKER_NAMES.get(marker_id_upper, f"Head Marker 0x{marker_id_upper}")
 
 
 def get_job_name(job_id: str) -> str:
@@ -705,4 +803,100 @@ class LineHandlers:
             current_mp=current_mp,
             max_mp=max_mp,
             shield_percent=shield_percent,
+        )
+
+    @staticmethod
+    def parse_line_20_starts_casting(fields: list) -> TargetingEvent | None:
+        """Parse a StartsCasting line (Line 20) for boss->player targeting.
+
+        Format: 20|timestamp|source_id|source_name|ability_id|ability_name|
+                target_id|target_name|cast_time|x|y|z|heading|hash
+
+        This tracks which player the boss is initially targeting with a cast,
+        before the ability actually resolves.
+
+        Args:
+            fields: List of pipe-separated fields
+
+        Returns:
+            TargetingEvent if valid boss->player cast, None otherwise
+        """
+        if len(fields) < 8:
+            return None
+
+        source_id = fields[2]
+        source_name = fields[3]
+        ability_id = fields[4]
+        ability_name = fields[5]
+        target_id = fields[6]
+        target_name = fields[7]
+
+        # Only process enemy -> player casts
+        if not is_enemy_id(source_id) or not is_player_id(target_id):
+            return None
+
+        # Skip self-casts (boss casting on itself)
+        if source_id == target_id:
+            return None
+
+        # Skip if no ability name or target name
+        if not ability_name or not target_name:
+            return None
+
+        # Skip auto-attacks
+        if ability_name.lower() == "attack":
+            return None
+
+        return TargetingEvent(
+            timestamp=parse_timestamp(fields[1]),
+            source_id=source_id,
+            source_name=source_name,
+            target_id=target_id,
+            target_name=target_name,
+            ability_id=ability_id,
+            ability_name=ability_name,
+            event_type="cast_target",
+        )
+
+    @staticmethod
+    def parse_line_27_head_marker(fields: list) -> TargetingEvent | None:
+        """Parse a HeadMarker line (Line 27) for player targeting.
+
+        Format: 27|timestamp|target_id|target_name|?|?|marker_id|data0|...
+
+        This tracks head markers (visual indicators) placed on players for mechanics.
+
+        Args:
+            fields: List of pipe-separated fields
+
+        Returns:
+            TargetingEvent if valid player head marker, None otherwise
+        """
+        if len(fields) < 7:
+            return None
+
+        target_id = fields[2]
+        target_name = fields[3]
+        marker_id = fields[6]
+
+        # Only process player head markers
+        if not is_player_id(target_id):
+            return None
+
+        # Skip if no target name or marker ID
+        if not target_name or not marker_id:
+            return None
+
+        # Get human-readable marker name
+        marker_name = get_head_marker_name(marker_id)
+
+        return TargetingEvent(
+            timestamp=parse_timestamp(fields[1]),
+            source_id="",  # Head markers don't have a source in the log
+            source_name="",
+            target_id=target_id,
+            target_name=target_name,
+            ability_id=marker_id,
+            ability_name=marker_name,
+            event_type="head_marker",
         )

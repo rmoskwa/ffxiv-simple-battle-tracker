@@ -34,6 +34,10 @@ const elements = {
     debuffsDebuffFilter: document.getElementById('debuffs-debuff-filter'),
     // Deaths tab filters
     deathsPlayerFilter: document.getElementById('deaths-player-filter'),
+    // Targeting tab filters
+    targetingPlayerFilter: document.getElementById('targeting-player-filter'),
+    targetingEventFilter: document.getElementById('targeting-event-filter'),
+    targetingTable: document.querySelector('#targeting-table tbody'),
     // Global options
     showUnknownFilter: document.getElementById('show-unknown-filter'),
     refreshBtn: document.getElementById('refresh-btn'),
@@ -41,7 +45,7 @@ const elements = {
     debuffsTable: document.querySelector('#debuffs-table tbody'),
     deathsTable: document.querySelector('#deaths-table tbody'),
     // Timeline tab filter
-    timelineEventFilter: document.getElementById('timeline-event-filter'),
+    timelineEventFilter: document.getElementById('timeline-event-type-filter'),
     timelineSimplifiedToggle: document.getElementById('timeline-simplified-toggle'),
     timelineContainer: document.getElementById('timeline-container'),
     timelineContent: document.getElementById('timeline-content'),
@@ -66,6 +70,13 @@ const elements = {
     // Breakdown-specific filters (populated from all attempts)
     breakdownAbilityFilter: document.getElementById('breakdown-ability-filter'),
     breakdownDebuffFilter: document.getElementById('breakdown-debuff-filter'),
+    breakdownTargetingFilter: document.getElementById('breakdown-targeting-filter'),
+    // Targeting breakdown elements
+    targetingBreakdownPrompt: document.getElementById('targeting-breakdown-prompt'),
+    targetingBreakdownContent: document.getElementById('targeting-breakdown-content'),
+    targetingBreakdownName: document.getElementById('targeting-breakdown-name'),
+    targetingBreakdownTableHead: document.querySelector('#targeting-breakdown-table thead'),
+    targetingBreakdownTableBody: document.querySelector('#targeting-breakdown-table tbody'),
     // Manual Hit Type Modal
     manualHitTypeBtn: document.getElementById('manual-hit-type-btn'),
     hitTypeModal: document.getElementById('hit-type-modal'),
@@ -132,8 +143,8 @@ function initKeyboardShortcuts() {
         }
 
         // Tab switching with number keys
-        if (e.key >= '1' && e.key <= '6') {
-            const tabs = ['abilities', 'debuffs', 'deaths', 'timeline', 'breakdown', 'debuff-breakdown'];
+        if (e.key >= '1' && e.key <= '8') {
+            const tabs = ['abilities', 'debuffs', 'targeting', 'deaths', 'timeline', 'breakdown', 'debuff-breakdown', 'targeting-breakdown'];
             const tabIndex = parseInt(e.key) - 1;
             if (tabs[tabIndex]) {
                 switchTab(tabs[tabIndex]);
@@ -304,6 +315,10 @@ function initFilters() {
     // Deaths tab filters
     elements.deathsPlayerFilter.addEventListener('change', applyDeathsFilters);
 
+    // Targeting tab filters
+    elements.targetingPlayerFilter.addEventListener('change', applyTargetingFilters);
+    elements.targetingEventFilter.addEventListener('change', applyTargetingFilters);
+
     // Timeline tab filter
     elements.timelineEventFilter.addEventListener('change', applyTimelineFilters);
     elements.timelineSimplifiedToggle.addEventListener('change', applyTimelineFilters);
@@ -325,6 +340,9 @@ function initFilters() {
     elements.breakdownDebuffFilter.addEventListener('change', () => {
         renderDebuffBreakdown(elements.breakdownDebuffFilter.value);
     });
+    elements.breakdownTargetingFilter.addEventListener('change', () => {
+        renderTargetingBreakdown(elements.breakdownTargetingFilter.value);
+    });
 
     // Best guess timeline button
     elements.guessTimelineBtn.addEventListener('click', generateBestGuessTimeline);
@@ -345,6 +363,11 @@ function clearTabFilters(tab) {
         case 'deaths':
             elements.deathsPlayerFilter.value = '';
             applyDeathsFilters();
+            break;
+        case 'targeting':
+            elements.targetingPlayerFilter.value = '';
+            elements.targetingEventFilter.value = '';
+            applyTargetingFilters();
             break;
         case 'timeline':
             elements.timelineEventFilter.value = '';
@@ -377,6 +400,14 @@ function applyDeathsFilters() {
     renderDeathsTable(attemptData.deaths, playerFilter);
 }
 
+function applyTargetingFilters() {
+    if (!attemptData) return;
+    const playerFilter = elements.targetingPlayerFilter.value;
+    const eventFilter = elements.targetingEventFilter.value;
+    const showUnknown = elements.showUnknownFilter.checked;
+    renderTargetingTable(attemptData.targeting_events || [], playerFilter, eventFilter, showUnknown);
+}
+
 function applyTimelineFilters() {
     if (!attemptData) return;
     const eventTypeFilter = elements.timelineEventFilter.value;
@@ -399,6 +430,7 @@ function applyAllFilters() {
     applyAbilitiesFilters();
     applyDebuffsFilters();
     applyDeathsFilters();
+    applyTargetingFilters();
     applyTimelineFilters();
 }
 
@@ -408,6 +440,8 @@ function clearAllFilters() {
     elements.debuffsPlayerFilter.value = '';
     elements.debuffsDebuffFilter.value = '';
     elements.deathsPlayerFilter.value = '';
+    elements.targetingPlayerFilter.value = '';
+    elements.targetingEventFilter.value = '';
     elements.timelineEventFilter.value = '';
     elements.showUnknownFilter.checked = false;
     applyAllFilters();
@@ -746,16 +780,19 @@ async function loadAttemptDetails(fightId, attemptNumber) {
     // Populate tab-specific filters
     populateAbilitiesTabFilters(data);
     populateDebuffsTabFilters(data);
+    populateTargetingTabFilters(data);
     populateDeathsTabFilters(data);
 
-    // Populate breakdown-specific filters (all abilities/debuffs across all attempts)
+    // Populate breakdown-specific filters (all abilities/debuffs/targeting across all attempts)
     populateBreakdownAbilityFilter();
     populateBreakdownDebuffFilter();
+    populateBreakdownTargetingFilter();
 
     // Render all tables with current filter values
     const showUnknown = elements.showUnknownFilter.checked;
     renderAbilitiesTable(data.ability_hits, elements.abilitiesPlayerFilter.value, elements.abilitiesAbilityFilter.value, showUnknown);
     renderDebuffsTable(data.debuffs_applied, elements.debuffsPlayerFilter.value, elements.debuffsDebuffFilter.value, showUnknown);
+    renderTargetingTable(data.targeting_events || [], elements.targetingPlayerFilter.value, elements.targetingEventFilter.value, showUnknown);
     renderDeathsTable(data.deaths, elements.deathsPlayerFilter.value);
     // Use applyTimelineFilters to respect simplified view toggle
     applyTimelineFilters();
@@ -763,6 +800,7 @@ async function loadAttemptDetails(fightId, attemptNumber) {
     // Breakdown tabs use their own dedicated dropdowns
     renderAbilityBreakdown(elements.breakdownAbilityFilter.value);
     renderDebuffBreakdown(elements.breakdownDebuffFilter.value);
+    renderTargetingBreakdown(elements.breakdownTargetingFilter.value);
 }
 
 // Populate abilities tab filters (player + ability)
@@ -839,6 +877,53 @@ function populateDeathsTabFilters(data) {
     populatePlayerDropdown(elements.deathsPlayerFilter, players);
 }
 
+// Populate targeting tab filters (player + event)
+function populateTargetingTabFilters(data) {
+    const players = extractPlayersFromData(data);
+    populatePlayerDropdown(elements.targetingPlayerFilter, players);
+
+    // Populate event filter with optgroups for cast_target and head_marker
+    const currentEventValue = elements.targetingEventFilter.value;
+    const eventsByType = { cast_target: new Set(), head_marker: new Set() };
+
+    (data.targeting_events || []).forEach(event => {
+        const eventType = event.event_type || 'cast_target';
+        eventsByType[eventType].add(event.ability_name);
+    });
+
+    elements.targetingEventFilter.innerHTML = '<option value="">All Events</option>';
+
+    if (eventsByType.cast_target.size > 0) {
+        const castGroup = document.createElement('optgroup');
+        castGroup.label = 'Cast Target';
+        [...eventsByType.cast_target].sort().forEach(name => {
+            const option = document.createElement('option');
+            option.value = name;
+            option.textContent = name;
+            castGroup.appendChild(option);
+        });
+        elements.targetingEventFilter.appendChild(castGroup);
+    }
+
+    if (eventsByType.head_marker.size > 0) {
+        const markerGroup = document.createElement('optgroup');
+        markerGroup.label = 'Head Marker';
+        [...eventsByType.head_marker].sort().forEach(name => {
+            const option = document.createElement('option');
+            option.value = name;
+            option.textContent = name;
+            markerGroup.appendChild(option);
+        });
+        elements.targetingEventFilter.appendChild(markerGroup);
+    }
+
+    // Restore selection if valid
+    const allEvents = [...eventsByType.cast_target, ...eventsByType.head_marker];
+    if (allEvents.includes(currentEventValue)) {
+        elements.targetingEventFilter.value = currentEventValue;
+    }
+}
+
 // Helper: Extract players from attempt data
 function extractPlayersFromData(data) {
     const participantNames = new Set();
@@ -867,6 +952,15 @@ function extractPlayersFromData(data) {
         data.deaths.forEach(death => {
             if (death.player_name) {
                 participantNames.add(death.player_name);
+            }
+        });
+    }
+
+    // From targeting events
+    if (data.targeting_events) {
+        data.targeting_events.forEach(event => {
+            if (event.target_id && event.target_id.startsWith('10') && event.target_name) {
+                participantNames.add(event.target_name);
             }
         });
     }
@@ -1028,6 +1122,73 @@ async function populateBreakdownDebuffFilter() {
     }
 }
 
+// Populate breakdown targeting filter from ALL attempts in the current fight
+async function populateBreakdownTargetingFilter() {
+    if (!currentFight) {
+        elements.breakdownTargetingFilter.innerHTML = '<option value="">Select a targeting event...</option>';
+        return;
+    }
+
+    const currentValue = elements.breakdownTargetingFilter.value;
+
+    // Fetch fight data to get all attempts
+    const fightData = await fetchAPI(`/api/fights/${currentFight}`);
+    if (!fightData || !fightData.attempts) {
+        elements.breakdownTargetingFilter.innerHTML = '<option value="">No targeting events found</option>';
+        return;
+    }
+
+    // Collect all unique targeting events across all attempts, grouped by event type
+    const eventsByType = { cast_target: new Set(), head_marker: new Set() };
+    const showUnknown = elements.showUnknownFilter.checked;
+
+    fightData.attempts.forEach(attempt => {
+        if (attempt.targeting_events) {
+            attempt.targeting_events.forEach(event => {
+                // Filter out unknown events unless showUnknown is checked
+                if (showUnknown || !event.ability_name.toLowerCase().includes('unknown')) {
+                    const eventType = event.event_type || 'cast_target';
+                    eventsByType[eventType].add(event.ability_name);
+                }
+            });
+        }
+    });
+
+    elements.breakdownTargetingFilter.innerHTML = '<option value="">Select a targeting event...</option>';
+
+    // Add Cast Target group first if there are any
+    if (eventsByType.cast_target.size > 0) {
+        const castGroup = document.createElement('optgroup');
+        castGroup.label = 'Cast Target';
+        [...eventsByType.cast_target].sort().forEach(name => {
+            const option = document.createElement('option');
+            option.value = name;
+            option.textContent = name;
+            castGroup.appendChild(option);
+        });
+        elements.breakdownTargetingFilter.appendChild(castGroup);
+    }
+
+    // Add Head Marker group
+    if (eventsByType.head_marker.size > 0) {
+        const markerGroup = document.createElement('optgroup');
+        markerGroup.label = 'Head Marker';
+        [...eventsByType.head_marker].sort().forEach(name => {
+            const option = document.createElement('option');
+            option.value = name;
+            option.textContent = name;
+            markerGroup.appendChild(option);
+        });
+        elements.breakdownTargetingFilter.appendChild(markerGroup);
+    }
+
+    // Restore selection if still valid
+    const allEvents = new Set([...eventsByType.cast_target, ...eventsByType.head_marker]);
+    if (currentValue && allEvents.has(currentValue)) {
+        elements.breakdownTargetingFilter.value = currentValue;
+    }
+}
+
 // Render abilities table with sorting
 function renderAbilitiesTable(abilities, playerFilter, abilityFilter, showUnknown = false) {
     let filtered = abilities;
@@ -1177,6 +1338,43 @@ function renderDeathsTable(deaths, playerFilter = '') {
     });
 }
 
+// Render targeting table
+function renderTargetingTable(targetingEvents, playerFilter, eventFilter, showUnknown = false) {
+    let filtered = targetingEvents;
+
+    // Filter out unknown events unless showUnknown is checked
+    if (!showUnknown) {
+        filtered = filtered.filter(e => !e.ability_name.toLowerCase().includes('unknown'));
+    }
+
+    if (playerFilter) {
+        filtered = filtered.filter(e => e.target_name === playerFilter);
+    }
+    if (eventFilter) {
+        filtered = filtered.filter(e => e.ability_name === eventFilter);
+    }
+
+    elements.targetingTable.innerHTML = '';
+
+    if (filtered.length === 0) {
+        elements.targetingTable.innerHTML = '<tr><td colspan="4" class="empty-state">No targeting events</td></tr>';
+        return;
+    }
+
+    filtered.forEach(event => {
+        const row = document.createElement('tr');
+        const eventType = event.event_type || 'cast_target';
+        row.className = `event-${eventType}`;
+        row.innerHTML = `
+            <td>${formatRelativeTime(event.relative_time_seconds)}</td>
+            <td>${event.ability_name}</td>
+            <td>${event.target_name}</td>
+            <td>${event.source_name}</td>
+        `;
+        elements.targetingTable.appendChild(row);
+    });
+}
+
 // Render timeline
 function renderTimeline(data, showUnknown = false, eventTypeFilter = '') {
     elements.timelineDuration.textContent = formatDuration(data.duration_seconds);
@@ -1232,6 +1430,24 @@ function renderTimeline(data, showUnknown = false, eventTypeFilter = '') {
         });
     }
 
+    // Add targeting events if not filtered out
+    if (!eventTypeFilter || eventTypeFilter === 'targeting') {
+        let targeting = data.targeting_events || [];
+        if (!showUnknown) {
+            targeting = targeting.filter(t => !t.ability_name.toLowerCase().includes('unknown'));
+        }
+        targeting.forEach(t => {
+            events.push({
+                type: 'targeting',
+                relative_time: t.relative_time_seconds,
+                name: t.ability_name,
+                target: t.target_name,
+                value: null,
+                event_type: t.event_type || 'cast_target',
+            });
+        });
+    }
+
     // Sort by relative time
     events.sort((a, b) => a.relative_time - b.relative_time);
 
@@ -1247,9 +1463,14 @@ function renderTimeline(data, showUnknown = false, eventTypeFilter = '') {
 
     groupedEvents.forEach(group => {
         const div = document.createElement('div');
-        // Add source-type class for debuffs (environment vs enemy)
-        const sourceClass = group.type === 'debuff' && group.source_type ? `source-${group.source_type}` : '';
-        div.className = `timeline-event ${group.type} ${sourceClass}`.trim();
+        // Add source-type class for debuffs (environment vs enemy) and event-type for targeting
+        let extraClass = '';
+        if (group.type === 'debuff' && group.source_type) {
+            extraClass = `source-${group.source_type}`;
+        } else if (group.type === 'targeting' && group.event_type) {
+            extraClass = `event-${group.event_type}`;
+        }
+        div.className = `timeline-event ${group.type} ${extraClass}`.trim();
 
         let icon, details, valueStr;
         const uniqueCount = group.displayTargets.length;
@@ -1296,6 +1517,18 @@ function renderTimeline(data, showUnknown = false, eventTypeFilter = '') {
                     details = `<strong>${group.name}</strong> on ${targetList}`;
                 }
                 valueStr = group.avgValue ? group.avgValue.toFixed(1) + 's' : '';
+                break;
+            case 'targeting':
+                icon = 'T';
+                if (group.isMultiRound) {
+                    const roundsBadge = `<span class="event-count">x${group.rounds}</span>`;
+                    details = `<strong>${group.name}</strong> ${roundsBadge} targeting ${uniqueCount} players`;
+                } else if (group.count > 1) {
+                    details = `<strong>${group.name}</strong> targeting ${targetList}`;
+                } else {
+                    details = `<strong>${group.name}</strong> targeting ${targetList}`;
+                }
+                valueStr = '';
                 break;
         }
 
@@ -1363,6 +1596,8 @@ function groupTimelineEvents(events, windowSeconds) {
                 isMultiRound: false,
                 // Preserve source_type for debuffs
                 source_type: event.source_type || null,
+                // Preserve event_type for targeting
+                event_type: event.event_type || null,
             };
         }
     });
@@ -1746,6 +1981,102 @@ async function renderDebuffBreakdown(selectedDebuff) {
     bodyHtml += `<td class="total-cell grand-total">${grandTotal}</td></tr>`;
 
     elements.debuffBreakdownTableBody.innerHTML = bodyHtml;
+}
+
+// Render targeting breakdown across all attempts
+async function renderTargetingBreakdown(selectedEvent) {
+    // If no specific targeting event selected, show prompt
+    if (!selectedEvent || !currentFight) {
+        elements.targetingBreakdownPrompt.style.display = 'block';
+        elements.targetingBreakdownContent.style.display = 'none';
+        return;
+    }
+
+    // Show content, hide prompt
+    elements.targetingBreakdownPrompt.style.display = 'none';
+    elements.targetingBreakdownContent.style.display = 'block';
+    elements.targetingBreakdownName.textContent = selectedEvent;
+
+    // Fetch fight data to get all attempts
+    const fightData = await fetchAPI(`/api/fights/${currentFight}`);
+    if (!fightData || !fightData.attempts) {
+        elements.targetingBreakdownTableBody.innerHTML = '<tr><td colspan="100%" class="empty-state">No data available</td></tr>';
+        return;
+    }
+
+    // Collect all unique players across all attempts
+    const allPlayers = new Set();
+    const attemptData = [];
+
+    fightData.attempts.forEach(attempt => {
+        const eventsByPlayer = {};
+
+        (attempt.targeting_events || []).forEach(event => {
+            if (event.ability_name === selectedEvent) {
+                allPlayers.add(event.target_name);
+                eventsByPlayer[event.target_name] = (eventsByPlayer[event.target_name] || 0) + 1;
+            }
+        });
+
+        attemptData.push({
+            attemptNumber: attempt.attempt_number,
+            outcome: attempt.outcome,
+            eventsByPlayer: eventsByPlayer
+        });
+    });
+
+    // Sort players by role (Tank -> Healer -> DPS) then by name
+    const playerList = sortPlayersByRole(Array.from(allPlayers));
+
+    // If no events found for this targeting event
+    if (playerList.length === 0) {
+        elements.targetingBreakdownTableHead.innerHTML = '';
+        elements.targetingBreakdownTableBody.innerHTML = '<tr><td class="empty-state">No events recorded for this targeting event</td></tr>';
+        return;
+    }
+
+    // Build header row with role-based coloring
+    let headerHtml = '<tr><th>Attempt</th>';
+    playerList.forEach(player => {
+        const role = getPlayerRole(player);
+        const roleClass = role ? `role-${role}` : '';
+        headerHtml += `<th class="${roleClass}">${player}</th>`;
+    });
+    headerHtml += '<th>Total</th></tr>';
+    elements.targetingBreakdownTableHead.innerHTML = headerHtml;
+
+    // Build data rows
+    let bodyHtml = '';
+    attemptData.forEach(attempt => {
+        const outcomeClass = attempt.outcome === 'victory' ? 'victory' : (attempt.outcome === 'wipe' ? 'wipe' : '');
+        bodyHtml += `<tr>`;
+        bodyHtml += `<td class="attempt-cell ${outcomeClass}">#${attempt.attemptNumber}</td>`;
+
+        let rowTotal = 0;
+        playerList.forEach(player => {
+            const count = attempt.eventsByPlayer[player] || 0;
+            rowTotal += count;
+            bodyHtml += `<td class="count-cell ${count > 0 ? 'has-hits' : ''}">${count || ''}</td>`;
+        });
+
+        bodyHtml += `<td class="total-cell">${rowTotal || ''}</td>`;
+        bodyHtml += '</tr>';
+    });
+
+    // Add totals row
+    bodyHtml += '<tr class="totals-row"><td><strong>Total</strong></td>';
+    let grandTotal = 0;
+    playerList.forEach(player => {
+        let playerTotal = 0;
+        attemptData.forEach(attempt => {
+            playerTotal += attempt.eventsByPlayer[player] || 0;
+        });
+        grandTotal += playerTotal;
+        bodyHtml += `<td class="total-cell">${playerTotal || ''}</td>`;
+    });
+    bodyHtml += `<td class="total-cell grand-total">${grandTotal}</td></tr>`;
+
+    elements.targetingBreakdownTableBody.innerHTML = bodyHtml;
 }
 
 // Get player job info from session or current fight data

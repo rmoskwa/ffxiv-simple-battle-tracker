@@ -65,10 +65,12 @@
                 <div class="tabs-left">
                     <button class="tab-btn active" data-tab="abilities" title="Press 1">Ability Hits</button>
                     <button class="tab-btn" data-tab="debuffs" title="Press 2">Debuffs</button>
-                    <button class="tab-btn" data-tab="deaths" title="Press 3">Deaths</button>
-                    <button class="tab-btn" data-tab="timeline" title="Press 4">Timeline</button>
-                    <button class="tab-btn" data-tab="breakdown" title="Press 5">Ability Breakdown</button>
-                    <button class="tab-btn" data-tab="debuff-breakdown" title="Press 6">Debuff Breakdown</button>
+                    <button class="tab-btn" data-tab="targeting" title="Press 3">Targeting</button>
+                    <button class="tab-btn" data-tab="deaths" title="Press 4">Deaths</button>
+                    <button class="tab-btn" data-tab="timeline" title="Press 5">Timeline</button>
+                    <button class="tab-btn" data-tab="breakdown" title="Press 6">Breakdown</button>
+                    <button class="tab-btn" data-tab="debuff-breakdown" title="Press 7">Debuff Breakdown</button>
+                    <button class="tab-btn" data-tab="targeting-breakdown" title="Press 8">Target Breakdown</button>
                 </div>
                 <div class="tabs-right">
                     <label class="checkbox-label">
@@ -141,6 +143,35 @@
                     </table>
                 </div>
 
+                <div id="targeting-tab" class="tab-panel">
+                    <div class="tab-filter-bar">
+                        <div class="filter-group">
+                            <label for="targeting-player-filter">Player:</label>
+                            <select id="targeting-player-filter">
+                                <option value="">All Players</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label for="targeting-event-filter">Event:</label>
+                            <select id="targeting-event-filter">
+                                <option value="">All Events</option>
+                            </select>
+                        </div>
+                        <button class="filter-btn clear-tab-filter" data-tab="targeting" title="Clear filters">Clear</button>
+                    </div>
+                    <table id="targeting-table">
+                        <thead>
+                            <tr>
+                                <th>Time</th>
+                                <th>Event</th>
+                                <th>Target</th>
+                                <th>Source</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+
                 <div id="deaths-tab" class="tab-panel">
                     <div class="tab-filter-bar">
                         <div class="filter-group">
@@ -166,11 +197,12 @@
                 <div id="timeline-tab" class="tab-panel">
                     <div class="tab-filter-bar">
                         <div class="filter-group">
-                            <label for="timeline-event-filter">Event Type:</label>
-                            <select id="timeline-event-filter">
+                            <label for="timeline-event-type-filter">Event Type:</label>
+                            <select id="timeline-event-type-filter">
                                 <option value="">All Events</option>
                                 <option value="ability">Abilities</option>
                                 <option value="debuff">Debuffs</option>
+                                <option value="targeting">Targeting</option>
                                 <option value="death">Deaths</option>
                             </select>
                         </div>
@@ -251,13 +283,37 @@
                         </div>
                     </div>
                 </div>
+
+                <div id="targeting-breakdown-tab" class="tab-panel">
+                    <div id="targeting-breakdown-container">
+                        <div id="targeting-breakdown-filter-bar" class="breakdown-filter-bar">
+                            <label for="breakdown-targeting-filter">Targeting Event:</label>
+                            <select id="breakdown-targeting-filter">
+                                <option value="">Select a targeting event...</option>
+                            </select>
+                        </div>
+                        <div id="targeting-breakdown-prompt" class="empty-state">
+                            <p>Select a specific targeting event from the dropdown above to see breakdown across attempts</p>
+                        </div>
+                        <div id="targeting-breakdown-content" style="display: none;">
+                            <div id="targeting-breakdown-header">
+                                <span>Targeting: </span>
+                                <span id="targeting-breakdown-name"></span>
+                            </div>
+                            <table id="targeting-breakdown-table">
+                                <thead></thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
             </div>
         </section>
     </main>
 
     <footer>
         <p>FFXIV Battle Tracker - Parsing ACT logs for raid analysis</p>
-        <p class="shortcuts-hint">Shortcuts: 1-6 Tabs | Ctrl+R Refresh | Esc Clear</p>
+        <p class="shortcuts-hint">Shortcuts: 1-8 Tabs | Ctrl+R Refresh | Esc Clear</p>
     </footer>
 
     <!-- Manual Hit Type Entry Modal -->

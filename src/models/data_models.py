@@ -153,6 +153,33 @@ class DebuffApplied:
 
 
 @dataclass
+class TargetingEvent:
+    """Represents a targeting event (head marker or initial cast target) on a player."""
+
+    timestamp: datetime
+    source_id: str  # Boss/environment ID
+    source_name: str  # Boss name
+    target_id: str  # Player being targeted
+    target_name: str  # Player name
+    ability_id: str  # Ability ID (for cast) or marker ID (for head marker)
+    ability_name: str  # Ability name or marker name
+    event_type: str  # "cast_target" or "head_marker"
+
+    def to_dict(self) -> dict:
+        """Convert to dictionary for JSON serialization."""
+        return {
+            "timestamp": self.timestamp.isoformat(),
+            "source_id": self.source_id,
+            "source_name": self.source_name,
+            "target_id": self.target_id,
+            "target_name": self.target_name,
+            "ability_id": self.ability_id,
+            "ability_name": self.ability_name,
+            "event_type": self.event_type,
+        }
+
+
+@dataclass
 class PlayerDeath:
     """Represents a player death."""
 
@@ -185,6 +212,7 @@ class FightAttempt:
     first_damage_time: datetime | None = None  # When first player damage hits boss
     ability_hits: list[AbilityHit] = field(default_factory=list)
     debuffs_applied: list[DebuffApplied] = field(default_factory=list)
+    targeting_events: list[TargetingEvent] = field(default_factory=list)
     deaths: list[PlayerDeath] = field(default_factory=list)
     # Active mitigations during this attempt (for unmitigated damage calculation)
     active_mitigations: list["ActiveMitigation"] = field(default_factory=list)
@@ -223,6 +251,15 @@ class FightAttempt:
             if debuff.target_name not in result:
                 result[debuff.target_name] = []
             result[debuff.target_name].append(debuff)
+        return result
+
+    def get_targeting_by_player(self) -> dict[str, list[TargetingEvent]]:
+        """Group targeting events by target player name."""
+        result: dict[str, list[TargetingEvent]] = {}
+        for event in self.targeting_events:
+            if event.target_name not in result:
+                result[event.target_name] = []
+            result[event.target_name].append(event)
         return result
 
     def get_active_mitigations_at(
@@ -343,6 +380,10 @@ class FightAttempt:
             self._add_relative_time(debuff.to_dict(), debuff.timestamp)
             for debuff in self.debuffs_applied
         ]
+        targeting_with_time = [
+            self._add_relative_time(event.to_dict(), event.timestamp)
+            for event in self.targeting_events
+        ]
         deaths_with_time = [
             self._add_relative_time(death.to_dict(), death.timestamp)
             for death in self.deaths
@@ -357,10 +398,12 @@ class FightAttempt:
             "duration_seconds": self.duration_seconds,
             "ability_hits": ability_hits_with_time,
             "debuffs_applied": debuffs_with_time,
+            "targeting_events": targeting_with_time,
             "deaths": deaths_with_time,
             "summary": {
                 "total_hits": len(self.ability_hits),
                 "total_debuffs": len(self.debuffs_applied),
+                "total_targeting": len(self.targeting_events),
                 "total_deaths": len(self.deaths),
                 "unique_abilities": len(self.get_abilities_by_name()),
             },
@@ -565,6 +608,9 @@ class RaidSession:
         all_ability_hits: dict[str, dict[str, int]] = {}  # ability -> player -> count
         all_deaths: dict[str, int] = {}  # player -> count
         all_debuffs: dict[str, dict[str, int]] = {}  # debuff -> player -> count
+        all_targeting: dict[
+            str, dict[str, int]
+        ] = {}  # targeting event -> player -> count
 
         for fight in self.fights:
             for attempt in fight.completed_attempts:
@@ -590,6 +636,14 @@ class RaidSession:
                         all_debuffs[debuff.effect_name][debuff.target_name] = 0
                     all_debuffs[debuff.effect_name][debuff.target_name] += 1
 
+                # Count targeting events per player
+                for event in attempt.targeting_events:
+                    if event.ability_name not in all_targeting:
+                        all_targeting[event.ability_name] = {}
+                    if event.target_name not in all_targeting[event.ability_name]:
+                        all_targeting[event.ability_name][event.target_name] = 0
+                    all_targeting[event.ability_name][event.target_name] += 1
+
         return {
             "total_fights": len(self.fights),
             "total_attempts": len(self.attempts),
@@ -598,6 +652,7 @@ class RaidSession:
             "ability_hits_by_player": all_ability_hits,
             "deaths_by_player": all_deaths,
             "debuffs_by_player": all_debuffs,
+            "targeting_by_player": all_targeting,
         }
 
     def to_dict(self) -> dict:

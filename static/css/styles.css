@@ -909,6 +909,141 @@ tbody tr:hover {
     border-left-color: var(--warning);
 }
 
+/* Targeting Events Styling */
+/* Targeting table row styling by event type */
+#targeting-table tbody tr.event-cast_target {
+    border-left: 3px solid #4a90d9;
+}
+
+#targeting-table tbody tr.event-head_marker {
+    border-left: 3px solid #d94a90;
+}
+
+/* Timeline targeting events */
+.timeline-event.targeting {
+    background: rgba(74, 144, 217, 0.2);
+    border-left-color: #4a90d9;
+}
+
+.timeline-event.targeting.event-cast_target {
+    background: rgba(74, 144, 217, 0.2);
+    border-left-color: #4a90d9;
+}
+
+.timeline-event.targeting.event-head_marker {
+    background: rgba(217, 74, 144, 0.2);
+    border-left-color: #d94a90;
+}
+
+/* Simplified timeline targeting cells */
+.simplified-event-cell.targeting {
+    background: rgba(74, 144, 217, 0.25);
+    border-left: 3px solid #4a90d9;
+    color: var(--text-primary);
+}
+
+/* Targeting Breakdown Container */
+#targeting-breakdown-container {
+    background: var(--bg-secondary);
+    border-radius: 4px;
+    padding: 1rem;
+}
+
+#targeting-breakdown-header {
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--border-color);
+    font-weight: 600;
+}
+
+#targeting-breakdown-name {
+    color: #4a90d9;
+}
+
+/* Targeting breakdown table specific styling */
+#targeting-breakdown-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+#targeting-breakdown-table th,
+#targeting-breakdown-table td {
+    padding: 0.5rem 0.75rem;
+    text-align: center;
+    border: 1px solid var(--border-color);
+}
+
+#targeting-breakdown-table th {
+    background: var(--bg-tertiary);
+    font-weight: 600;
+    font-size: 0.8rem;
+}
+
+#targeting-breakdown-table th:first-child {
+    text-align: left;
+}
+
+#targeting-breakdown-table .attempt-cell {
+    text-align: left;
+    font-weight: 500;
+}
+
+#targeting-breakdown-table .attempt-cell.wipe {
+    color: var(--danger);
+}
+
+#targeting-breakdown-table .attempt-cell.victory {
+    color: var(--success);
+}
+
+#targeting-breakdown-table .count-cell.has-hits {
+    background: rgba(74, 144, 217, 0.15);
+    color: #4a90d9;
+    font-weight: 600;
+}
+
+#targeting-breakdown-table .total-cell {
+    font-weight: 600;
+    color: var(--text-secondary);
+}
+
+#targeting-breakdown-table .totals-row {
+    background: var(--bg-tertiary);
+}
+
+#targeting-breakdown-table .totals-row td {
+    border-top: 2px solid var(--border-color);
+}
+
+#targeting-breakdown-table .grand-total {
+    color: #4a90d9;
+}
+
+/* Role-based coloring for targeting breakdown table */
+#targeting-breakdown-table th.role-tank {
+    background: rgba(52, 152, 219, 0.3);
+    color: #5dade2;
+}
+
+#targeting-breakdown-table th.role-healer {
+    background: rgba(46, 204, 113, 0.3);
+    color: #58d68d;
+}
+
+#targeting-breakdown-table th.role-dps {
+    background: rgba(231, 76, 60, 0.3);
+    color: #ec7063;
+}
+
+/* Targeting optgroup styling */
+select optgroup[label="Cast Target"] {
+    color: #4a90d9;
+}
+
+select optgroup[label="Head Marker"] {
+    color: #d94a90;
+}
+
 /* Optgroup styling for dropdowns */
 select optgroup {
     font-weight: 600;
