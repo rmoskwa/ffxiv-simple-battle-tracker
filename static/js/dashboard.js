@@ -40,6 +40,8 @@ const elements = {
     abilitiesTable: document.querySelector('#abilities-table tbody'),
     debuffsTable: document.querySelector('#debuffs-table tbody'),
     deathsTable: document.querySelector('#deaths-table tbody'),
+    // Timeline tab filter
+    timelineEventFilter: document.getElementById('timeline-event-filter'),
     timelineContent: document.getElementById('timeline-content'),
     timelineDuration: document.getElementById('timeline-duration'),
     breakdownPrompt: document.getElementById('breakdown-prompt'),
@@ -285,6 +287,9 @@ function initFilters() {
     // Deaths tab filters
     elements.deathsPlayerFilter.addEventListener('change', applyDeathsFilters);
 
+    // Timeline tab filter
+    elements.timelineEventFilter.addEventListener('change', applyTimelineFilters);
+
     // Global show unknown filter (affects abilities, debuffs, timeline)
     elements.showUnknownFilter.addEventListener('change', applyAllFilters);
 
@@ -320,6 +325,10 @@ function clearTabFilters(tab) {
             elements.deathsPlayerFilter.value = '';
             applyDeathsFilters();
             break;
+        case 'timeline':
+            elements.timelineEventFilter.value = '';
+            applyTimelineFilters();
+            break;
     }
 }
 
@@ -345,13 +354,18 @@ function applyDeathsFilters() {
     renderDeathsTable(attemptData.deaths, playerFilter);
 }
 
+function applyTimelineFilters() {
+    if (!attemptData) return;
+    const eventTypeFilter = elements.timelineEventFilter.value;
+    const showUnknown = elements.showUnknownFilter.checked;
+    renderTimeline(attemptData, showUnknown, eventTypeFilter);
+}
+
 function applyAllFilters() {
     applyAbilitiesFilters();
     applyDebuffsFilters();
     applyDeathsFilters();
-    if (attemptData) {
-        renderTimeline(attemptData, elements.showUnknownFilter.checked);
-    }
+    applyTimelineFilters();
 }
 
 function clearAllFilters() {
@@ -360,6 +374,7 @@ function clearAllFilters() {
     elements.debuffsPlayerFilter.value = '';
     elements.debuffsDebuffFilter.value = '';
     elements.deathsPlayerFilter.value = '';
+    elements.timelineEventFilter.value = '';
     elements.showUnknownFilter.checked = false;
     applyAllFilters();
 }
@@ -708,7 +723,7 @@ async function loadAttemptDetails(fightId, attemptNumber) {
     renderAbilitiesTable(data.ability_hits, elements.abilitiesPlayerFilter.value, elements.abilitiesAbilityFilter.value, showUnknown);
     renderDebuffsTable(data.debuffs_applied, elements.debuffsPlayerFilter.value, elements.debuffsDebuffFilter.value, showUnknown);
     renderDeathsTable(data.deaths, elements.deathsPlayerFilter.value);
-    renderTimeline(data, showUnknown);
+    renderTimeline(data, showUnknown, elements.timelineEventFilter.value);
 
     // Breakdown tabs use their own dedicated dropdowns
     renderAbilityBreakdown(elements.breakdownAbilityFilter.value);
@@ -1110,53 +1125,59 @@ function renderDeathsTable(deaths, playerFilter = '') {
 }
 
 // Render timeline
-function renderTimeline(data, showUnknown = false) {
+function renderTimeline(data, showUnknown = false, eventTypeFilter = '') {
     elements.timelineDuration.textContent = formatDuration(data.duration_seconds);
 
     // Combine all events and sort by relative time
     const events = [];
 
-    // Filter abilities
-    let abilities = data.ability_hits;
-    if (!showUnknown) {
-        abilities = abilities.filter(a => !a.ability_name.toLowerCase().includes('unknown'));
+    // Add abilities if not filtered out
+    if (!eventTypeFilter || eventTypeFilter === 'ability') {
+        let abilities = data.ability_hits;
+        if (!showUnknown) {
+            abilities = abilities.filter(a => !a.ability_name.toLowerCase().includes('unknown'));
+        }
+        abilities.forEach(a => {
+            events.push({
+                type: 'ability',
+                relative_time: a.relative_time_seconds,
+                name: a.ability_name,
+                target: a.target_name,
+                value: a.damage,
+            });
+        });
     }
-    abilities.forEach(a => {
-        events.push({
-            type: 'ability',
-            relative_time: a.relative_time_seconds,
-            name: a.ability_name,
-            target: a.target_name,
-            value: a.damage,
-        });
-    });
 
-    // Deaths are always shown
-    data.deaths.forEach(d => {
-        events.push({
-            type: 'death',
-            relative_time: d.relative_time_seconds,
-            name: d.player_name,
-            target: d.source_name || 'unknown',
-            value: null,
+    // Add deaths if not filtered out
+    if (!eventTypeFilter || eventTypeFilter === 'death') {
+        data.deaths.forEach(d => {
+            events.push({
+                type: 'death',
+                relative_time: d.relative_time_seconds,
+                name: d.player_name,
+                target: d.source_name || 'unknown',
+                value: null,
+            });
         });
-    });
-
-    // Filter debuffs
-    let debuffs = data.debuffs_applied;
-    if (!showUnknown) {
-        debuffs = debuffs.filter(d => !d.effect_name.toLowerCase().includes('unknown'));
     }
-    debuffs.forEach(d => {
-        events.push({
-            type: 'debuff',
-            relative_time: d.relative_time_seconds,
-            name: d.effect_name,
-            target: d.target_name,
-            value: d.duration,
-            source_type: d.source_type || 'enemy',
+
+    // Add debuffs if not filtered out (both environment and enemy sources)
+    if (!eventTypeFilter || eventTypeFilter === 'debuff') {
+        let debuffs = data.debuffs_applied;
+        if (!showUnknown) {
+            debuffs = debuffs.filter(d => !d.effect_name.toLowerCase().includes('unknown'));
+        }
+        debuffs.forEach(d => {
+            events.push({
+                type: 'debuff',
+                relative_time: d.relative_time_seconds,
+                name: d.effect_name,
+                target: d.target_name,
+                value: d.duration,
+                source_type: d.source_type || 'enemy',
+            });
         });
-    });
+    }
 
     // Sort by relative time
     events.sort((a, b) => a.relative_time - b.relative_time);

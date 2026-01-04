@@ -163,6 +163,18 @@
                 </div>
 
                 <div id="timeline-tab" class="tab-panel">
+                    <div class="tab-filter-bar">
+                        <div class="filter-group">
+                            <label for="timeline-event-filter">Event Type:</label>
+                            <select id="timeline-event-filter">
+                                <option value="">All Events</option>
+                                <option value="ability">Abilities</option>
+                                <option value="debuff">Debuffs</option>
+                                <option value="death">Deaths</option>
+                            </select>
+                        </div>
+                        <button class="filter-btn clear-tab-filter" data-tab="timeline" title="Clear filters">Clear</button>
+                    </div>
                     <div id="timeline-container">
                         <div id="timeline-header">
                             <span>Fight Timeline</span>
