@@ -49,6 +49,10 @@ const elements = {
     simplifiedTimelineContainer: document.getElementById('simplified-timeline-container'),
     simplifiedTimelineContent: document.getElementById('simplified-timeline-content'),
     simplifiedTimelineDuration: document.getElementById('simplified-timeline-duration'),
+    guessTimelineBtn: document.getElementById('guess-timeline-btn'),
+    bestGuessTimelineContainer: document.getElementById('best-guess-timeline-container'),
+    bestGuessTimelineContent: document.getElementById('best-guess-timeline-content'),
+    bestGuessAttemptCount: document.getElementById('best-guess-attempt-count'),
     breakdownPrompt: document.getElementById('breakdown-prompt'),
     breakdownContent: document.getElementById('breakdown-content'),
     breakdownAbilityName: document.getElementById('breakdown-ability-name'),
@@ -313,6 +317,9 @@ function initFilters() {
     elements.breakdownDebuffFilter.addEventListener('change', () => {
         renderDebuffBreakdown(elements.breakdownDebuffFilter.value);
     });
+
+    // Best guess timeline button
+    elements.guessTimelineBtn.addEventListener('click', generateBestGuessTimeline);
 }
 
 function clearTabFilters(tab) {
@@ -334,6 +341,7 @@ function clearTabFilters(tab) {
         case 'timeline':
             elements.timelineEventFilter.value = '';
             elements.timelineSimplifiedToggle.checked = false;
+            elements.bestGuessTimelineContainer.style.display = 'none';
             applyTimelineFilters();
             break;
     }
@@ -1775,6 +1783,315 @@ function sortPlayersByRole(players) {
         if (orderA !== orderB) return orderA - orderB;
         return a.localeCompare(b);
     });
+}
+
+// Best Guess Timeline Generation
+async function generateBestGuessTimeline() {
+    if (!currentFight) {
+        showNotification('Please select a fight first');
+        return;
+    }
+
+    // Fetch fight data to get all attempts
+    const fightData = await fetchAPI(`/api/fights/${currentFight}`);
+    if (!fightData || !fightData.attempts) {
+        showNotification('Failed to load fight data');
+        return;
+    }
+
+    const attempts = fightData.attempts.filter(a => a.outcome !== 'in_progress');
+
+    // Require at least 5 attempts
+    if (attempts.length < 5) {
+        showNotification(`Need at least 5 attempts (have ${attempts.length})`);
+        return;
+    }
+
+    const showUnknown = elements.showUnknownFilter.checked;
+
+    // Collect ordinal-matched events
+    const abilityEvents = collectOrdinalMatchedEvents(attempts, 'ability_hits', 'ability_name', showUnknown);
+    const debuffEvents = collectOrdinalMatchedEvents(attempts, 'debuffs_applied', 'effect_name', showUnknown);
+
+    // Filter to events appearing in at least 3 attempts within ±10s of median
+    const filteredAbilities = filterByConsensus(abilityEvents, 3, 10);
+    const filteredDebuffs = filterByConsensus(debuffEvents, 3, 10);
+
+    // Detect and merge choice points (±5s median tolerance)
+    const mergedAbilities = detectChoicePoints(filteredAbilities, 5);
+    const mergedDebuffs = detectChoicePoints(filteredDebuffs, 5);
+
+    // Combine and sort by time
+    const allEvents = [
+        ...mergedAbilities.map(e => ({ ...e, type: 'ability' })),
+        ...mergedDebuffs.map(e => ({ ...e, type: 'debuff' }))
+    ].sort((a, b) => a.medianTime - b.medianTime);
+
+    // Render the best guess timeline
+    renderBestGuessTimeline(allEvents, attempts.length);
+}
+
+// Collect events matched by ordinal position across attempts
+function collectOrdinalMatchedEvents(attempts, eventKey, nameKey, showUnknown) {
+    // Get all unique event names
+    const allNames = new Set();
+    attempts.forEach(attempt => {
+        const events = attempt[eventKey] || [];
+        events.forEach(event => {
+            const name = event[nameKey];
+            if (showUnknown || !name.toLowerCase().includes('unknown')) {
+                allNames.add(name);
+            }
+        });
+    });
+
+    const result = [];
+
+    allNames.forEach(eventName => {
+        // Get occurrences per attempt, sorted by time
+        const occurrencesByAttempt = new Map();
+        let maxOrdinal = 0;
+
+        attempts.forEach((attempt, attemptIdx) => {
+            const events = attempt[eventKey] || [];
+            const rawTimes = events
+                .filter(e => e[nameKey] === eventName)
+                .map(e => e.relative_time_seconds)
+                .sort((a, b) => a - b);
+
+            // Deduplicate times within the same second (AoE abilities hit multiple players)
+            const occurrences = [];
+            let lastSecond = -1;
+            rawTimes.forEach(time => {
+                const second = Math.floor(time);
+                if (second !== lastSecond) {
+                    occurrences.push(time);
+                    lastSecond = second;
+                }
+            });
+
+            occurrencesByAttempt.set(attemptIdx, occurrences);
+            maxOrdinal = Math.max(maxOrdinal, occurrences.length);
+        });
+
+        // For each ordinal position, collect times
+        for (let ordinal = 0; ordinal < maxOrdinal; ordinal++) {
+            const timesAtOrdinal = [];
+            const attemptsWithOrdinal = [];
+
+            occurrencesByAttempt.forEach((occurrences, attemptIdx) => {
+                if (occurrences.length > ordinal) {
+                    timesAtOrdinal.push(occurrences[ordinal]);
+                    attemptsWithOrdinal.push(attemptIdx);
+                }
+            });
+
+            if (timesAtOrdinal.length > 0) {
+                result.push({
+                    name: eventName,
+                    ordinal: ordinal + 1,
+                    times: timesAtOrdinal,
+                    attempts: attemptsWithOrdinal
+                });
+            }
+        }
+    });
+
+    return result;
+}
+
+// Filter events by consensus threshold
+function filterByConsensus(events, minAttempts, toleranceSeconds) {
+    return events.map(event => {
+        const medianTime = calculateMedian(event.times);
+
+        // Find attempts within tolerance of median
+        const withinTolerance = [];
+        const timesWithinTolerance = [];
+
+        event.times.forEach((time, idx) => {
+            if (Math.abs(time - medianTime) <= toleranceSeconds) {
+                withinTolerance.push(event.attempts[idx]);
+                timesWithinTolerance.push(time);
+            }
+        });
+
+        return {
+            name: event.name,
+            ordinal: event.ordinal,
+            medianTime: calculateMedian(timesWithinTolerance),
+            consensusCount: withinTolerance.length,
+            attempts: new Set(withinTolerance)
+        };
+    }).filter(event => event.consensusCount >= minAttempts);
+}
+
+// Detect choice points and merge alternative abilities
+function detectChoicePoints(events, toleranceSeconds) {
+    if (events.length === 0) return [];
+
+    // Sort by median time
+    const sorted = [...events].sort((a, b) => a.medianTime - b.medianTime);
+    const merged = [];
+    const processed = new Set();
+
+    for (let i = 0; i < sorted.length; i++) {
+        if (processed.has(i)) continue;
+
+        const event = sorted[i];
+        const alternatives = [event];
+
+        // Look for other events with different names within tolerance
+        for (let j = i + 1; j < sorted.length; j++) {
+            if (processed.has(j)) continue;
+
+            const other = sorted[j];
+
+            // Check if medians are within tolerance
+            if (Math.abs(event.medianTime - other.medianTime) > toleranceSeconds) {
+                break; // Sorted by time, so no more candidates
+            }
+
+            // Check if different ability name
+            if (event.name === other.name) continue;
+
+            // Check if attempts are mostly disjoint (overlap < 30%)
+            const intersection = new Set([...event.attempts].filter(x => other.attempts.has(x)));
+            const minSize = Math.min(event.attempts.size, other.attempts.size);
+            const overlapRatio = intersection.size / minSize;
+
+            if (overlapRatio <= 0.3) {
+                alternatives.push(other);
+                processed.add(j);
+            }
+        }
+
+        processed.add(i);
+
+        if (alternatives.length === 1) {
+            merged.push(event);
+        } else {
+            // Merge alternatives
+            const allTimes = [];
+            const allAttempts = new Set();
+            const names = alternatives.map(a => a.name).sort();
+
+            alternatives.forEach(alt => {
+                // We need the original times, but we only have medianTime
+                // Use the median as representative
+                allTimes.push(alt.medianTime);
+                alt.attempts.forEach(a => allAttempts.add(a));
+            });
+
+            merged.push({
+                name: names.join(' / '),
+                ordinal: null, // Mixed ordinals
+                medianTime: calculateMedian(allTimes),
+                consensusCount: allAttempts.size,
+                attempts: allAttempts,
+                isChoicePoint: true
+            });
+        }
+    }
+
+    return merged;
+}
+
+// Render the best guess timeline
+function renderBestGuessTimeline(events, totalAttempts) {
+    // Hide other timeline views, show best guess
+    elements.timelineContainer.style.display = 'none';
+    elements.simplifiedTimelineContainer.style.display = 'none';
+    elements.bestGuessTimelineContainer.style.display = 'block';
+
+    elements.bestGuessAttemptCount.textContent = `(from ${totalAttempts} attempts)`;
+
+    if (events.length === 0) {
+        elements.bestGuessTimelineContent.innerHTML = '<div class="empty-state">No consistent mechanics found across attempts</div>';
+        return;
+    }
+
+    // Build 2-column layout (Abilities | Debuffs)
+    const eventsByTime = new Map();
+
+    events.forEach(event => {
+        const timeKey = Math.floor(event.medianTime);
+        if (!eventsByTime.has(timeKey)) {
+            eventsByTime.set(timeKey, { abilities: [], debuffs: [] });
+        }
+
+        const bucket = eventsByTime.get(timeKey);
+        if (event.type === 'ability') {
+            bucket.abilities.push(event);
+        } else {
+            bucket.debuffs.push(event);
+        }
+    });
+
+    const sortedTimes = Array.from(eventsByTime.keys()).sort((a, b) => a - b);
+
+    let html = `
+        <div class="simplified-column abilities">
+            <div class="simplified-column-header">Abilities</div>
+            <div class="simplified-events-list">
+    `;
+
+    sortedTimes.forEach(time => {
+        const bucket = eventsByTime.get(time);
+        const timeStr = formatRelativeTime(time);
+
+        bucket.abilities.forEach(evt => {
+            const choiceClass = evt.isChoicePoint ? 'choice-point' : '';
+            html += `
+                <div class="simplified-event-row">
+                    <span class="simplified-time">${timeStr}</span>
+                    <div class="simplified-event-cell ability ${choiceClass}">
+                        <span class="simplified-event-name">${evt.name}</span>
+                    </div>
+                </div>
+            `;
+        });
+    });
+
+    html += `
+            </div>
+        </div>
+        <div class="simplified-column debuffs">
+            <div class="simplified-column-header">Debuffs</div>
+            <div class="simplified-events-list">
+    `;
+
+    sortedTimes.forEach(time => {
+        const bucket = eventsByTime.get(time);
+        const timeStr = formatRelativeTime(time);
+
+        bucket.debuffs.forEach(evt => {
+            const choiceClass = evt.isChoicePoint ? 'choice-point' : '';
+            html += `
+                <div class="simplified-event-row">
+                    <span class="simplified-time">${timeStr}</span>
+                    <div class="simplified-event-cell debuff ${choiceClass}">
+                        <span class="simplified-event-name">${evt.name}</span>
+                    </div>
+                </div>
+            `;
+        });
+    });
+
+    html += `
+            </div>
+        </div>
+    `;
+
+    elements.bestGuessTimelineContent.innerHTML = html;
+}
+
+// Calculate median of an array of numbers
+function calculateMedian(arr) {
+    if (arr.length === 0) return 0;
+    const sorted = [...arr].sort((a, b) => a - b);
+    const mid = Math.floor(sorted.length / 2);
+    return sorted.length % 2 !== 0 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
 }
 
 // Utility functions

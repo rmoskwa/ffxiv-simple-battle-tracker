@@ -177,6 +177,7 @@
                             <input type="checkbox" id="timeline-simplified-toggle">
                             <span>Simplified View</span>
                         </label>
+                        <button id="guess-timeline-btn" class="filter-btn guess-timeline-btn" title="Generate best guess timeline from all attempts">Guess Timeline From All Pulls (Experimental!! Jeff needs to work on this...)</button>
                         <button class="filter-btn clear-tab-filter" data-tab="timeline" title="Clear filters">Clear</button>
                     </div>
                     <div id="timeline-container">
@@ -192,6 +193,13 @@
                             <span id="simplified-timeline-duration"></span>
                         </div>
                         <div id="simplified-timeline-content"></div>
+                    </div>
+                    <div id="best-guess-timeline-container" style="display: none;">
+                        <div id="best-guess-timeline-header">
+                            <span>Best Guess Timeline</span>
+                            <span id="best-guess-attempt-count"></span>
+                        </div>
+                        <div id="best-guess-timeline-content"></div>
                     </div>
                 </div>
 

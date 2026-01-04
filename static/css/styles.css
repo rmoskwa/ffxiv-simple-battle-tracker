@@ -1111,6 +1111,55 @@ footer {
     transform: translateX(0);
 }
 
+/* Best Guess Timeline */
+#best-guess-timeline-container {
+    background: var(--bg-secondary);
+    border-radius: 4px;
+    padding: 1rem;
+}
+
+#best-guess-timeline-header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--border-color);
+    font-weight: 600;
+}
+
+#best-guess-attempt-count {
+    color: var(--text-secondary);
+    font-weight: normal;
+    font-size: 0.875rem;
+}
+
+#best-guess-timeline-content {
+    display: flex;
+    gap: 1rem;
+}
+
+/* Choice point styling - highlight alternative abilities */
+.simplified-event-cell.choice-point {
+    background: rgba(156, 39, 176, 0.3);
+    border-left-color: #9c27b0;
+}
+
+.simplified-event-cell.choice-point .simplified-event-name {
+    font-style: italic;
+}
+
+/* Guess Timeline Button */
+.guess-timeline-btn {
+    background: var(--accent-secondary);
+    color: white;
+    border-color: var(--accent-secondary);
+}
+
+.guess-timeline-btn:hover {
+    background: #6a42a5;
+    border-color: #6a42a5;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
     main {
