@@ -217,7 +217,10 @@ class TestParseDeath:
 
     def test_enemy_death_filtered(self):
         """Enemy deaths should be filtered out."""
-        line = "25|2026-01-03T14:31:37.0000000-06:00|4000A132|Doomtrain|10764E7E|Sir Bj|hash"
+        line = (
+            "25|2026-01-03T14:31:37.0000000-06:00|4000A132|Doomtrain|"
+            "10764E7E|Sir Bj|hash"
+        )
         fields = line.split("|")
         result = LineHandlers.parse_line_25_death(fields)
 
@@ -246,7 +249,10 @@ class TestParseBuff:
 
     def test_player_buff_filtered(self):
         """Player -> player buffs should be filtered out."""
-        line = "26|2026-01-03T14:23:00.0000000-06:00|123|Regen|30.00|10764E7E|Sir Bj|10764E7E|Sir Bj|00|294990|294990|hash"
+        line = (
+            "26|2026-01-03T14:23:00.0000000-06:00|123|Regen|30.00|"
+            "10764E7E|Sir Bj|10764E7E|Sir Bj|00|294990|294990|hash"
+        )
         fields = line.split("|")
         result = LineHandlers.parse_line_26_buff(fields)
 
