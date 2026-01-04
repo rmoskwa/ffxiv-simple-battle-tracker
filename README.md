@@ -28,8 +28,8 @@ cd ffxiv-battle-tracker
 python -m venv .venv
 source .venv\Scripts\activate # Windows OS
 
-# Install dependencies from pyproject.toml
-pip install .
+# Install from pyproject.toml
+pip install -e .
 
 # For development (includes ruff, pytest, pre-commit)
 pip install -e ".[dev]"
@@ -39,19 +39,16 @@ pip install -e ".[dev]"
 
 ```bash
 # Parse a log file (CLI output)
-python -m src.main --parse /path/to/log.log
+ffxiv-tracker --parse /path/to/log.log # Useful for a sanity check to see if parser is working
 
 # Parse with web dashboard
-python -m src.main --parse /path/to/log.log --web
+ffxiv-tracker --parse /path/to/log.log --web
 
 # Custom port
-python -m src.main --parse /path/to/log.log --web --port 9000
-
-# Export to JSON
-python -m src.main --parse /path/to/log.log --export report.json
+ffxiv-tracker --parse /path/to/log.log --web --port 9000
 
 # Verbose output
-python -m src.main --parse /path/to/log.log -v
+ffxiv-tracker --parse /path/to/log.log -v 
 ```
 
 ## Tech Stack

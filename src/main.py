@@ -4,11 +4,9 @@
 Usage:
     python -m src.main --parse /path/to/log.log           # Parse a completed log
     python -m src.main --parse /path/to/log.log --web     # Parse and launch dashboard
-    python -m src.main --parse /path/to/log.log --export report.json  # Export to JSON
 """
 
 import argparse
-import json
 import sys
 from pathlib import Path
 
@@ -141,37 +139,23 @@ def parse_log(
     print(f"Parsing log file: {filepath}")
 
     parser = LogParser()
-    parser.set_on_attempt_complete(on_attempt_complete)
+
+    if not web:
+        parser.set_on_attempt_complete(on_attempt_complete)
 
     if verbose:
         parser.set_on_state_change(on_state_change)
 
     parser.parse_file(filepath)
 
-    print(f"\nProcessed {parser.lines_processed:,} lines")
-    print_session_summary(parser)
+    print(f"Processed {parser.lines_processed:,} lines")
 
     if web:
-        print(f"\nLaunching web dashboard at http://localhost:{port}")
+        print(f"Launching web dashboard at http://localhost:{port}")
         print("Press Ctrl+C to stop\n")
         run_server(parser, log_file_path=filepath, port=port)
-
-
-def export_json(filepath: str, output: str) -> None:
-    """Parse a log and export to JSON."""
-    path = Path(filepath)
-    if not path.exists():
-        print(f"Error: File not found: {filepath}", file=sys.stderr)
-        sys.exit(1)
-
-    parser = LogParser()
-    session = parser.parse_file(filepath)
-
-    output_path = Path(output)
-    with open(output_path, "w", encoding="utf-8") as f:
-        json.dump(session.to_dict(), f, indent=2)
-
-    print(f"Exported to: {output}")
+    else:
+        print_session_summary(parser)
 
 
 def main():
@@ -184,7 +168,6 @@ Examples:
   python -m src.main --parse Network_12345.log
   python -m src.main --parse Network_12345.log --web
   python -m src.main --parse Network_12345.log --web --port 9000
-  python -m src.main --parse Network_12345.log --export report.json
         """,
     )
 
@@ -193,9 +176,6 @@ Examples:
     )
     arg_parser.add_argument(
         "--port", type=int, default=8080, help="Port for web dashboard (default: 8080)"
-    )
-    arg_parser.add_argument(
-        "--export", metavar="JSONFILE", help="Export parsed data to JSON file"
     )
     arg_parser.add_argument(
         "-v",
@@ -210,11 +190,7 @@ Examples:
     )
 
     args = arg_parser.parse_args()
-
-    if args.export:
-        export_json(args.parse, args.export)
-    else:
-        parse_log(args.parse, verbose=args.verbose, web=args.web, port=args.port)
+    parse_log(args.parse, verbose=args.verbose, web=args.web, port=args.port)
 
 
 if __name__ == "__main__":
