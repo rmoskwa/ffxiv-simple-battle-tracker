@@ -142,6 +142,26 @@ class ActorControlData:
     data3: str
 
 
+@dataclass
+class EffectResultData:
+    """Data extracted from an EffectResult line (Line 37).
+
+    This line confirms when ability effects have been applied to a target.
+    It contains the sequence ID referencing the original ability line (21/22)
+    and the target's current HP/shield values after the effect.
+    """
+
+    timestamp: datetime
+    target_id: str
+    target_name: str
+    sequence_id: str
+    current_hp: int
+    max_hp: int
+    current_mp: int
+    max_mp: int
+    shield_percent: int  # Current shield as % of max HP (0-100)
+
+
 # ActorControl commands
 COMMAND_COMMENCE = "40000001"  # Fight starts
 COMMAND_VICTORY = "40000003"  # Victory
@@ -255,14 +275,21 @@ class LineHandlers:
         )
 
     @staticmethod
-    def parse_line_21_22_ability(fields: list) -> AbilityHit | None:
+    def parse_line_21_22_ability(
+        fields: list, shield_percent_before: int = 0
+    ) -> AbilityHit | None:
         """Parse an ability line (Line 21 single target, Line 22 AOE).
 
         Format: 21|timestamp|source_id|source_name|ability_id|ability_name|
                 target_id|target_name|flags|damage|...|target_hp|target_max_hp|...
+                ...|sequence_id|target_index|target_count|...
+
+        The sequence_id (field 43) links this ability to the corresponding
+        EffectResult line (37) for shield absorption tracking.
 
         Args:
             fields: List of pipe-separated fields
+            shield_percent_before: The target's shield % before this hit
 
         Returns:
             AbilityHit if valid and represents boss->player damage, None otherwise
@@ -299,6 +326,12 @@ class LineHandlers:
         if not is_damage_action(flags):
             return None
 
+        # Extract sequence_id (field 44) for correlating with line 37
+        # Format: ...source_heading|sequence_id|target_index|target_count|...
+        sequence_id = ""
+        if len(fields) > 44:
+            sequence_id = fields[44]
+
         return AbilityHit(
             timestamp=parse_timestamp(fields[1]),
             ability_id=ability_id,
@@ -311,6 +344,8 @@ class LineHandlers:
             flags=flags,
             is_critical=is_critical,
             is_direct_hit=is_direct_hit,
+            sequence_id=sequence_id,
+            shield_percent_before=shield_percent_before,
         )
 
     @staticmethod
@@ -605,4 +640,69 @@ class LineHandlers:
             duration=duration,
             mitigation_percent=debuff.mitigation_percent,
             is_boss_debuff=True,
+        )
+
+    @staticmethod
+    def parse_line_37_effect_result(fields: list) -> EffectResultData | None:
+        """Parse an EffectResult line (Line 37).
+
+        This line is sent when ability effects are applied to a target.
+        It contains the sequence ID linking back to the ability line (21/22)
+        and the target's current HP/shield values after the effect.
+
+        Format: 37|timestamp|id|name|sequenceId|currentHp|maxHp|currentMp|maxMp|
+                currentShield|?|x|y|z|heading|...
+
+        The currentShield field is the shield percentage (0-100) of max HP.
+
+        Args:
+            fields: List of pipe-separated fields
+
+        Returns:
+            EffectResultData if valid player effect result, None otherwise
+        """
+        if len(fields) < 10:
+            return None
+
+        target_id = fields[2]
+        target_name = fields[3]
+        sequence_id = fields[4]
+
+        # Only track player effect results
+        if not is_player_id(target_id):
+            return None
+
+        # Skip if no target name
+        if not target_name:
+            return None
+
+        # Parse HP values
+        try:
+            current_hp = int(fields[5]) if fields[5] else 0
+            max_hp = int(fields[6]) if fields[6] else 0
+            current_mp = int(fields[7]) if fields[7] else 0
+            max_mp = int(fields[8]) if fields[8] else 0
+        except ValueError:
+            current_hp = 0
+            max_hp = 0
+            current_mp = 0
+            max_mp = 0
+
+        # Parse shield percentage (field 9)
+        # This is an integer 0-100 representing shield % of max HP
+        try:
+            shield_percent = int(fields[9]) if fields[9] else 0
+        except ValueError:
+            shield_percent = 0
+
+        return EffectResultData(
+            timestamp=parse_timestamp(fields[1]),
+            target_id=target_id,
+            target_name=target_name,
+            sequence_id=sequence_id,
+            current_hp=current_hp,
+            max_hp=max_hp,
+            current_mp=current_mp,
+            max_mp=max_mp,
+            shield_percent=shield_percent,
         )

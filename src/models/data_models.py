@@ -88,6 +88,15 @@ class AbilityHit:
     # New fields for unmitigated damage calculation
     unmitigated_damage: int | None = None  # Calculated from mitigation buffs
     hit_type: str | None = None  # "Magic", "Physical", or None if unknown
+    # Shield absorption tracking
+    sequence_id: str = ""  # Sequence ID from line 21/22 for correlating with line 37
+    absorbed_damage: int = 0  # Damage absorbed by shields
+    shield_percent_before: int = 0  # Shield % on target before hit (for calculation)
+
+    @property
+    def total_damage(self) -> int:
+        """Total damage before shield absorption (damage + absorbed)."""
+        return self.damage + self.absorbed_damage
 
     def to_dict(self) -> dict:
         """Convert to dictionary for JSON serialization."""
@@ -105,6 +114,8 @@ class AbilityHit:
             "is_direct_hit": self.is_direct_hit,
             "unmitigated_damage": self.unmitigated_damage,
             "hit_type": self.hit_type,
+            "absorbed_damage": self.absorbed_damage,
+            "total_damage": self.total_damage,
         }
 
 
@@ -251,19 +262,26 @@ class FightAttempt:
 
         This method updates each AbilityHit's unmitigated_damage field based on
         the active mitigations at the time of the hit.
+
+        For unmitigated calculation, we use total_damage (damage + absorbed)
+        because shields absorb damage after mitigation is applied. So:
+        - total_damage = damage + absorbed = mitigated damage before shields
+        - unmitigated = total_damage / (1 - mitigation_percent)
         """
         # Import here to avoid circular imports
         from ..parser.mitigation_calc import calculate_unmitigated_damage
 
         for hit in self.ability_hits:
-            if hit.damage > 0:
+            # Use total_damage for unmitigated calculation
+            # total_damage includes both HP damage and shield-absorbed damage
+            if hit.total_damage > 0:
                 # Get active mitigations at the time of this hit
                 active_mits = self.get_active_mitigations_at(
                     hit.timestamp, hit.target_id
                 )
                 # Calculate unmitigated damage (pass hit_type for accurate mitigation)
                 hit.unmitigated_damage = calculate_unmitigated_damage(
-                    hit.damage, active_mits, hit.hit_type
+                    hit.total_damage, active_mits, hit.hit_type
                 )
             else:
                 # No damage, no unmitigated damage

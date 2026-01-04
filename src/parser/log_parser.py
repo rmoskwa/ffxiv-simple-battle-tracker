@@ -37,6 +37,7 @@ class LogParser:
     - Players in the raid
     - Fight attempts (commence -> wipe/victory)
     - Events within each attempt
+    - Player shield percentages for absorption tracking
 
     State Machine:
         IDLE -> (zone change) -> IN_INSTANCE
@@ -58,6 +59,14 @@ class LogParser:
             None  # Store wipe time until barrier up
         )
         self.lines_processed = 0
+
+        # Shield tracking for absorbed damage calculation
+        # Maps player_id -> (shield_percent, max_hp)
+        self._player_shields: dict[str, tuple[int, int]] = {}
+
+        # Pending ability hits awaiting effect result (line 37) for absorption calc
+        # Maps sequence_id -> list of (AbilityHit, shield_before_percent)
+        self._pending_hits: dict[str, list[tuple]] = {}
 
     def set_on_attempt_complete(self, callback: Callable[[FightAttempt], None]) -> None:
         """Set callback for when an attempt completes (wipe or victory)."""
@@ -107,6 +116,8 @@ class LogParser:
             self._handle_buff(fields)
         elif line_type == "33":
             self._handle_actor_control(fields)
+        elif line_type == "37":
+            self._handle_effect_result(fields)
 
     def _handle_zone_change(self, fields: list) -> None:
         """Handle zone change (Line 01)."""
@@ -169,7 +180,14 @@ class LogParser:
             if player_damage_time:
                 self.session.current_attempt.first_damage_time = player_damage_time
 
-        ability = self.handlers.parse_line_21_22_ability(fields)
+        # Get target_id to look up current shield state
+        target_id = fields[6] if len(fields) > 6 else ""
+        shield_before = 0
+        max_hp_before = 0
+        if target_id in self._player_shields:
+            shield_before, max_hp_before = self._player_shields[target_id]
+
+        ability = self.handlers.parse_line_21_22_ability(fields, shield_before)
         if not ability:
             return
 
@@ -185,6 +203,15 @@ class LogParser:
         # Add to current attempt
         if self.session.current_attempt:
             self.session.current_attempt.ability_hits.append(ability)
+
+            # Track pending hit for absorption calculation
+            # The sequence_id links this ability to its effect result (line 37)
+            if ability.sequence_id:
+                if ability.sequence_id not in self._pending_hits:
+                    self._pending_hits[ability.sequence_id] = []
+                self._pending_hits[ability.sequence_id].append(
+                    (ability, shield_before, max_hp_before)
+                )
 
     def _handle_death(self, fields: list) -> None:
         """Handle death (Line 25)."""
@@ -220,6 +247,62 @@ class LogParser:
         boss_debuff = self.handlers.parse_line_26_boss_debuff(fields)
         if boss_debuff and self.session.current_attempt:
             self.session.current_attempt.active_mitigations.append(boss_debuff)
+
+    def _handle_effect_result(self, fields: list) -> None:
+        """Handle effect result (Line 37).
+
+        This line confirms when ability effects are applied and contains
+        the target's current HP/shield values after the effect. We use this
+        to calculate absorbed damage by comparing shield % before and after.
+
+        For AOE abilities (line 22), all targets share the same sequence_id
+        but each gets their own line 37 result. We process hits one target
+        at a time, keeping unprocessed hits for other targets.
+        """
+        # Process effect results both in combat and during wipe
+        # (effects can resolve during wipe sequence)
+        if self.state not in (ParserState.IN_COMBAT, ParserState.WIPE_PENDING):
+            return
+
+        data = self.handlers.parse_line_37_effect_result(fields)
+        if not data:
+            return
+
+        # Update player shield state for future hits
+        self._player_shields[data.target_id] = (data.shield_percent, data.max_hp)
+
+        # Check if we have pending hits for this sequence_id
+        if data.sequence_id in self._pending_hits:
+            pending = self._pending_hits[data.sequence_id]
+            remaining = []
+
+            for hit, shield_before, max_hp_before in pending:
+                # Only calculate absorption for hits targeting this player
+                if hit.target_id != data.target_id:
+                    # Keep this hit for later (different target)
+                    remaining.append((hit, shield_before, max_hp_before))
+                    continue
+
+                # Calculate absorbed damage
+                # absorbed = (shield_before - shield_after) * max_hp / 100
+                shield_after = data.shield_percent
+                max_hp = data.max_hp if data.max_hp > 0 else max_hp_before
+
+                if max_hp > 0 and shield_before > shield_after:
+                    # Shield was consumed - calculate how much was absorbed
+                    shield_hp_before = (shield_before * max_hp) // 100
+                    shield_hp_after = (shield_after * max_hp) // 100
+                    absorbed = shield_hp_before - shield_hp_after
+
+                    # Sanity check: absorbed should be >= 0
+                    if absorbed > 0:
+                        hit.absorbed_damage = absorbed
+
+            # Update or remove pending hits
+            if remaining:
+                self._pending_hits[data.sequence_id] = remaining
+            else:
+                del self._pending_hits[data.sequence_id]
 
     def _handle_actor_control(self, fields: list) -> None:
         """Handle ActorControl (Line 33)."""
@@ -269,6 +352,9 @@ class LogParser:
     def _start_new_attempt(self, start_time: datetime) -> None:
         """Start a new fight attempt."""
         self._boss_detected = False
+        # Clear shield tracking state for new attempt
+        self._player_shields.clear()
+        self._pending_hits.clear()
         # Ensure we have a current fight (create one if needed from IDLE state)
         if not self.session.current_fight:
             # This shouldn't normally happen, but handle gracefully
@@ -328,3 +414,5 @@ class LogParser:
         self._boss_detected = False
         self._pending_wipe_time = None
         self.lines_processed = 0
+        self._player_shields.clear()
+        self._pending_hits.clear()

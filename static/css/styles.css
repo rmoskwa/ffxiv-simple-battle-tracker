@@ -570,6 +570,11 @@ tbody tr:hover {
     font-style: italic;
 }
 
+.absorbed-damage {
+    color: var(--text-secondary);
+    font-size: 0.9em;
+}
+
 /* Table Summary */
 .table-summary {
     margin-top: 1rem;

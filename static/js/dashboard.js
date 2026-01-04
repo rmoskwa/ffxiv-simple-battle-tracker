@@ -1094,11 +1094,18 @@ function renderAbilitiesTable(abilities, playerFilter, abilityFilter, showUnknow
         // Format hit type - show Unknown if not determined yet
         const hitTypeDisplay = ability.hit_type || '<span class="not-available">Unknown</span>';
 
+        // Format damage with absorbed amount
+        // Show "damage (absorbed)" if there was shield absorption
+        let damageDisplay = ability.damage.toLocaleString();
+        if (ability.absorbed_damage && ability.absorbed_damage > 0) {
+            damageDisplay += ` <span class="absorbed-damage">(${ability.absorbed_damage.toLocaleString()})</span>`;
+        }
+
         row.innerHTML = `
             <td>${formatRelativeTime(ability.relative_time_seconds)}</td>
             <td>${ability.ability_name}</td>
             <td>${ability.target_name}</td>
-            <td class="damage-value">${ability.damage.toLocaleString()}</td>
+            <td class="damage-value">${damageDisplay}</td>
             <td class="damage-value">${unmitigatedDisplay}</td>
             <td>${hitTypeDisplay}</td>
         `;
