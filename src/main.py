@@ -2,8 +2,9 @@
 """FFXIV Battle Tracker - Main entry point.
 
 Usage:
-    python -m src.main --parse /path/to/log.log           # Parse a completed log
-    python -m src.main --parse /path/to/log.log --web     # Parse and launch dashboard
+    ffxiv-tracker                                         # Launch GUI
+    ffxiv-tracker --parse /path/to/log.log                # Parse a completed log (CLI)
+    ffxiv-tracker --parse /path/to/log.log --web          # Parse and launch dashboard
 """
 
 import argparse
@@ -160,14 +161,22 @@ def parse_log(
 
 def main():
     """Main entry point."""
+    # If no arguments provided, launch GUI
+    if len(sys.argv) == 1:
+        from .gui_launcher import run_launcher
+
+        run_launcher()
+        return
+
     arg_parser = argparse.ArgumentParser(
         description="FFXIV Battle Tracker - Parse ACT logs for raid analysis",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  python -m src.main --parse Network_12345.log
-  python -m src.main --parse Network_12345.log --web
-  python -m src.main --parse Network_12345.log --web --port 9000
+  ffxiv-tracker                                    # Launch GUI
+  ffxiv-tracker --parse Network_12345.log          # CLI output
+  ffxiv-tracker --parse Network_12345.log --web    # Web dashboard
+  ffxiv-tracker --parse Network_12345.log --web --port 9000
         """,
     )
 
