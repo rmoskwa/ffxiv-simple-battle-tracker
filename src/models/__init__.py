@@ -1,9 +1,9 @@
 from .data_models import (
-    Player,
-    AbilityHit,
-    DebuffApplied,
-    PlayerDeath,
-    FightAttempt,
-    RaidSession,
-    ParserState,
+    Player as Player,
+    AbilityHit as AbilityHit,
+    DebuffApplied as DebuffApplied,
+    PlayerDeath as PlayerDeath,
+    FightAttempt as FightAttempt,
+    RaidSession as RaidSession,
+    ParserState as ParserState,
 )

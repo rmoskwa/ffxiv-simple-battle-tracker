@@ -8,6 +8,7 @@ from typing import Dict, List, Optional
 
 class ParserState(Enum):
     """State machine states for the log parser."""
+
     IDLE = "idle"
     IN_INSTANCE = "in_instance"
     IN_COMBAT = "in_combat"
@@ -16,6 +17,7 @@ class ParserState(Enum):
 
 class AttemptOutcome(Enum):
     """Possible outcomes for a fight attempt."""
+
     IN_PROGRESS = "in_progress"
     WIPE = "wipe"
     VICTORY = "victory"
@@ -24,8 +26,9 @@ class AttemptOutcome(Enum):
 @dataclass
 class Player:
     """Represents a player in the raid."""
-    id: str           # e.g., "1075762D"
-    name: str         # e.g., "Jalapeno Jeff"
+
+    id: str  # e.g., "1075762D"
+    name: str  # e.g., "Jalapeno Jeff"
     job_id: str = ""  # e.g., "21" for Astrologian
     job_name: str = ""  # e.g., "Astrologian"
 
@@ -41,6 +44,7 @@ class Player:
 @dataclass
 class AbilityHit:
     """Represents a boss ability hitting a player."""
+
     timestamp: datetime
     ability_id: str
     ability_name: str
@@ -49,7 +53,7 @@ class AbilityHit:
     target_id: str
     target_name: str
     damage: int
-    flags: str = ""        # for crit/direct hit info
+    flags: str = ""  # for crit/direct hit info
     is_critical: bool = False
     is_direct_hit: bool = False
 
@@ -73,6 +77,7 @@ class AbilityHit:
 @dataclass
 class DebuffApplied:
     """Represents a debuff applied to a player by the boss."""
+
     timestamp: datetime
     effect_id: str
     effect_name: str
@@ -82,7 +87,9 @@ class DebuffApplied:
     target_id: str
     target_name: str
     stacks: int = 0
-    source_type: str = "enemy"  # "enemy" for 40xxxxxx sources, "environment" for E0000000
+    source_type: str = (
+        "enemy"  # "enemy" for 40xxxxxx sources, "environment" for E0000000
+    )
 
     def to_dict(self) -> dict:
         """Convert to dictionary for JSON serialization."""
@@ -103,6 +110,7 @@ class DebuffApplied:
 @dataclass
 class PlayerDeath:
     """Represents a player death."""
+
     timestamp: datetime
     player_id: str
     player_name: str
@@ -123,6 +131,7 @@ class PlayerDeath:
 @dataclass
 class FightAttempt:
     """Represents a single attempt at a boss fight."""
+
     attempt_number: int
     start_time: datetime
     end_time: Optional[datetime] = None
@@ -211,13 +220,14 @@ class FightAttempt:
                 "total_debuffs": len(self.debuffs_applied),
                 "total_deaths": len(self.deaths),
                 "unique_abilities": len(self.get_abilities_by_name()),
-            }
+            },
         }
 
 
 @dataclass
 class Fight:
     """Represents a single boss fight encounter (may have multiple attempts)."""
+
     fight_id: int
     zone_id: str
     zone_name: str
@@ -263,7 +273,9 @@ class Fight:
         self.attempts.append(attempt)
         return attempt
 
-    def finalize_current_attempt(self, end_time: datetime, outcome: AttemptOutcome) -> None:
+    def finalize_current_attempt(
+        self, end_time: datetime, outcome: AttemptOutcome
+    ) -> None:
         """Finalize the current attempt with an outcome."""
         if self.current_attempt:
             self.current_attempt.end_time = end_time
@@ -303,13 +315,22 @@ class Fight:
             "total_wipes": self.total_wipes,
             "total_victories": self.total_victories,
             "total_deaths": self.total_deaths,
-            "players": {pid: {"id": p.id, "name": p.name, "job_id": p.job_id, "job_name": p.job_name} for pid, p in self.players.items()},
+            "players": {
+                pid: {
+                    "id": p.id,
+                    "name": p.name,
+                    "job_id": p.job_id,
+                    "job_name": p.job_name,
+                }
+                for pid, p in self.players.items()
+            },
         }
 
 
 @dataclass
 class RaidSession:
     """Represents a raid session with multiple fights."""
+
     start_time: Optional[datetime] = None
     players: Dict[str, Player] = field(default_factory=dict)
     fights: List[Fight] = field(default_factory=list)
@@ -370,7 +391,9 @@ class RaidSession:
         """Add a player to the session."""
         self.players[player.id] = player
 
-    def start_new_fight(self, zone_id: str, zone_name: str, start_time: datetime) -> Fight:
+    def start_new_fight(
+        self, zone_id: str, zone_name: str, start_time: datetime
+    ) -> Fight:
         """Start a new fight in a new zone."""
         fight = Fight(
             fight_id=len(self.fights) + 1,
@@ -387,7 +410,9 @@ class RaidSession:
             raise RuntimeError("No current fight to start attempt in")
         return self.current_fight.start_new_attempt(start_time)
 
-    def finalize_current_attempt(self, end_time: datetime, outcome: AttemptOutcome) -> None:
+    def finalize_current_attempt(
+        self, end_time: datetime, outcome: AttemptOutcome
+    ) -> None:
         """Finalize the current attempt with an outcome."""
         if self.current_fight:
             self.current_fight.finalize_current_attempt(end_time, outcome)
@@ -436,7 +461,15 @@ class RaidSession:
         """Convert to dictionary for JSON serialization."""
         return {
             "start_time": self.start_time.isoformat() if self.start_time else None,
-            "players": {pid: {"id": p.id, "name": p.name, "job_id": p.job_id, "job_name": p.job_name} for pid, p in self.players.items()},
+            "players": {
+                pid: {
+                    "id": p.id,
+                    "name": p.name,
+                    "job_id": p.job_id,
+                    "job_name": p.job_name,
+                }
+                for pid, p in self.players.items()
+            },
             "fights": [fight.to_dict() for fight in self.fights],
             "cross_attempt_stats": self.get_cross_attempt_stats(),
             # Legacy fields for backwards compatibility

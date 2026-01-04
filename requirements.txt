@@ -1,9 +1,6 @@
-# FFXIV Battle Tracker dependencies
-
-# Core (Sprint 1 - no external dependencies needed for parser)
-
-# Sprint 2 - Web Dashboard
+# Web Dashboard
 flask>=2.0
 
-# Sprint 3 - Real-time Mode
-watchdog>=3.0
+# Development
+ruff>=0.8.0
+pre-commit>=4.0

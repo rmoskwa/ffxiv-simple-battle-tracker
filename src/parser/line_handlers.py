@@ -5,9 +5,9 @@ Each handler parses a specific line type and extracts relevant data.
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Optional, Tuple
+from typing import Optional
 
-from ..models.data_models import AbilityHit, DebuffApplied, Player, PlayerDeath
+from ..models.data_models import AbilityHit, DebuffApplied, PlayerDeath
 from .damage_calc import calculate_damage, is_damage_action, parse_flags
 
 
@@ -102,6 +102,7 @@ def get_job_name(job_id: str) -> str:
 @dataclass
 class ZoneChangeData:
     """Data extracted from a zone change line (Line 01)."""
+
     timestamp: datetime
     zone_id: str
     zone_name: str
@@ -110,6 +111,7 @@ class ZoneChangeData:
 @dataclass
 class AddCombatantData:
     """Data extracted from an AddCombatant line (Line 03)."""
+
     timestamp: datetime
     id: str
     name: str
@@ -122,6 +124,7 @@ class AddCombatantData:
 @dataclass
 class ActorControlData:
     """Data extracted from an ActorControl line (Line 33)."""
+
     timestamp: datetime
     instance: str
     command: str
@@ -132,11 +135,11 @@ class ActorControlData:
 
 
 # ActorControl commands
-COMMAND_COMMENCE = "40000001"      # Fight starts
-COMMAND_VICTORY = "40000003"       # Victory
+COMMAND_COMMENCE = "40000001"  # Fight starts
+COMMAND_VICTORY = "40000003"  # Victory
 COMMAND_WIPE_FADEOUT = "40000005"  # Wipe (fade out)
-COMMAND_RECOMMENCE = "40000006"    # Retry/recommence
-COMMAND_BARRIER_UP = "40000011"    # Barrier up (reset ready)
+COMMAND_RECOMMENCE = "40000006"  # Retry/recommence
+COMMAND_BARRIER_UP = "40000011"  # Barrier up (reset ready)
 
 
 def parse_timestamp(timestamp_str: str) -> datetime:

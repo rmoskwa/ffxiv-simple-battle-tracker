@@ -34,7 +34,9 @@ def print_attempt_report(attempt: FightAttempt) -> None:
     if abilities_by_name:
         print(f"{'Ability':<30} {'Hits':>6} {'Total Damage':>12}")
         print("-" * 50)
-        for ability_name, hits in sorted(abilities_by_name.items(), key=lambda x: -len(x[1])):
+        for ability_name, hits in sorted(
+            abilities_by_name.items(), key=lambda x: -len(x[1])
+        ):
             total_damage = sum(h.damage for h in hits)
             print(f"{ability_name:<30} {len(hits):>6} {total_damage:>12,}")
     else:
@@ -46,7 +48,9 @@ def print_attempt_report(attempt: FightAttempt) -> None:
     if hits_by_player:
         print(f"{'Player':<25} {'Times Hit':>10} {'Total Damage':>12}")
         print("-" * 50)
-        for player_name, hits in sorted(hits_by_player.items(), key=lambda x: -len(x[1])):
+        for player_name, hits in sorted(
+            hits_by_player.items(), key=lambda x: -len(x[1])
+        ):
             total_damage = sum(h.damage for h in hits)
             print(f"{player_name:<25} {len(hits):>10} {total_damage:>12,}")
     else:
@@ -74,7 +78,7 @@ def print_attempt_report(attempt: FightAttempt) -> None:
         print(f"{'Time':<12} {'Player':<25} {'Killed By':<25}")
         print("-" * 65)
         for death in attempt.deaths:
-            time_str = death.timestamp.strftime('%H:%M:%S')
+            time_str = death.timestamp.strftime("%H:%M:%S")
             killed_by = death.source_name if death.source_name else "(unknown)"
             print(f"{time_str:<12} {death.player_name:<25} {killed_by:<25}")
     else:
@@ -107,7 +111,9 @@ def print_session_summary(parser: LogParser) -> None:
 
     if stats["deaths_by_player"]:
         print("\n--- DEATHS BY PLAYER (ALL ATTEMPTS) ---")
-        for player, count in sorted(stats["deaths_by_player"].items(), key=lambda x: -x[1]):
+        for player, count in sorted(
+            stats["deaths_by_player"].items(), key=lambda x: -x[1]
+        ):
             print(f"  {player}: {count} deaths")
 
     print("\n" + "=" * 70)
@@ -123,7 +129,9 @@ def on_state_change(state: ParserState) -> None:
     print(f"[STATE] {state.value}")
 
 
-def parse_log(filepath: str, verbose: bool = False, web: bool = False, port: int = 8080) -> None:
+def parse_log(
+    filepath: str, verbose: bool = False, web: bool = False, port: int = 8080
+) -> None:
     """Parse a complete log file."""
     path = Path(filepath)
     if not path.exists():
@@ -138,7 +146,7 @@ def parse_log(filepath: str, verbose: bool = False, web: bool = False, port: int
     if verbose:
         parser.set_on_state_change(on_state_change)
 
-    session = parser.parse_file(filepath)
+    parser.parse_file(filepath)
 
     print(f"\nProcessed {parser.lines_processed:,} lines")
     print_session_summary(parser)
@@ -177,35 +185,28 @@ Examples:
   python -m src.main --parse Network_12345.log --web
   python -m src.main --parse Network_12345.log --web --port 9000
   python -m src.main --parse Network_12345.log --export report.json
-        """
+        """,
     )
 
     arg_parser.add_argument(
-        "--parse",
-        metavar="LOGFILE",
-        required=True,
-        help="Parse a log file"
+        "--parse", metavar="LOGFILE", required=True, help="Parse a log file"
     )
     arg_parser.add_argument(
-        "--port",
-        type=int,
-        default=8080,
-        help="Port for web dashboard (default: 8080)"
+        "--port", type=int, default=8080, help="Port for web dashboard (default: 8080)"
     )
     arg_parser.add_argument(
-        "--export",
-        metavar="JSONFILE",
-        help="Export parsed data to JSON file"
+        "--export", metavar="JSONFILE", help="Export parsed data to JSON file"
     )
     arg_parser.add_argument(
-        "-v", "--verbose",
+        "-v",
+        "--verbose",
         action="store_true",
-        help="Show verbose output including state changes"
+        help="Show verbose output including state changes",
     )
     arg_parser.add_argument(
         "--web",
         action="store_true",
-        help="Launch web dashboard after parsing (use Refresh button to reload data)"
+        help="Launch web dashboard after parsing (use Refresh button to reload data)",
     )
 
     args = arg_parser.parse_args()

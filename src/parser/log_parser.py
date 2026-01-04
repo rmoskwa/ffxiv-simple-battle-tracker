@@ -1,11 +1,10 @@
 """Main log parser with state machine for tracking fight attempts."""
 
 from datetime import datetime
-from typing import Callable, List, Optional
+from typing import Callable, Optional
 
 from ..models.data_models import (
     AttemptOutcome,
-    Fight,
     FightAttempt,
     ParserState,
     Player,
@@ -55,7 +54,9 @@ class LogParser:
         self._boss_detected = False
         self._on_attempt_complete: Optional[Callable[[FightAttempt], None]] = None
         self._on_state_change: Optional[Callable[[ParserState], None]] = None
-        self._pending_wipe_time: Optional[datetime] = None  # Store wipe time until barrier up
+        self._pending_wipe_time: Optional[datetime] = (
+            None  # Store wipe time until barrier up
+        )
         self.lines_processed = 0
 
     def set_on_attempt_complete(self, callback: Callable[[FightAttempt], None]) -> None:
@@ -160,7 +161,10 @@ class LogParser:
             return
 
         # Check for first player->boss damage (to set timeline start)
-        if self.session.current_attempt and not self.session.current_attempt.first_damage_time:
+        if (
+            self.session.current_attempt
+            and not self.session.current_attempt.first_damage_time
+        ):
             player_damage_time = self.handlers.parse_player_damage_timestamp(fields)
             if player_damage_time:
                 self.session.current_attempt.first_damage_time = player_damage_time

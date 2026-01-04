@@ -22,7 +22,7 @@ SEVERITY_CRIT_DIRECT_HIT = 0x60
 
 # Damage bitmasks
 DAMAGE_HALLOWED = 0x0100  # No damage (invuln)
-DAMAGE_BIG = 0x4000       # "A lot" of damage - special calculation needed
+DAMAGE_BIG = 0x4000  # "A lot" of damage - special calculation needed
 
 
 def calculate_damage(damage_str: str) -> int:
