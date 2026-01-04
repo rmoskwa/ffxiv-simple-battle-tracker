@@ -526,9 +526,7 @@ function renderFightsList(fights) {
         header.innerHTML = `
             <div class="fight-info">
                 <div class="fight-zone">${fight.zone_name}</div>
-            </div>
-            <div class="fight-stats">
-                <span class="fight-stat">${fight.total_attempts} attempts</span>
+                <div class="fight-attempts">${fight.total_attempts} attempts</div>
             </div>
             <span class="fight-toggle">▼</span>
         `;

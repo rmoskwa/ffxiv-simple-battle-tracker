@@ -218,15 +218,15 @@ main {
 }
 
 .fight-zone {
-    font-size: 0.7rem;
-    color: var(--text-secondary);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
+    font-size: 0.8rem;
+    color: var(--text-primary);
+    font-weight: 500;
 }
 
-.fight-boss {
-    font-weight: 600;
-    color: var(--accent-primary);
+.fight-attempts {
+    font-size: 0.7rem;
+    color: var(--text-secondary);
+    margin-top: 0.25rem;
 }
 
 .fight-stats {
