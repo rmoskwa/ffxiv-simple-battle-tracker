@@ -2206,7 +2206,7 @@ function populateHitTypeTable(abilities) {
                 <span class="ability-id">(${ability.ability_id})</span>
             </td>
             <td>
-                <select data-ability-id="${ability.ability_id}">
+                <select data-ability-id="${ability.ability_id}" data-original-value="${ability.hit_type}">
                     ${optionsHtml}
                 </select>
             </td>
@@ -2217,15 +2217,16 @@ function populateHitTypeTable(abilities) {
 }
 
 async function submitManualHitTypes() {
-    // Collect all hit type selections
+    // Collect only hit type selections that changed from their original value
     const overrides = {};
     const selects = elements.hitTypeTableBody.querySelectorAll('select');
 
     selects.forEach(select => {
         const abilityId = select.dataset.abilityId;
         const hitType = select.value;
-        // Only include if not "Unknown" (or include all for explicit override)
-        if (hitType !== 'Unknown') {
+        const originalValue = select.dataset.originalValue;
+        // Only include if the value was actually changed by the user
+        if (hitType !== originalValue && hitType !== 'Unknown') {
             overrides[abilityId] = hitType;
         }
     });
