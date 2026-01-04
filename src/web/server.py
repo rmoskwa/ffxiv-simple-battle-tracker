@@ -99,7 +99,7 @@ def register_routes(app: Flask) -> None:
                 "zone_name": fight.zone_name,
                 "boss_name": fight.boss_name or "(Unknown Boss)",
                 "start_time": fight.start_time.isoformat() if fight.start_time else None,
-                "total_attempts": len(fight.attempts),
+                "total_attempts": len(fight.completed_attempts),
                 "total_wipes": fight.total_wipes,
                 "total_victories": fight.total_victories,
                 "total_deaths": fight.total_deaths,
@@ -133,7 +133,7 @@ def register_routes(app: Flask) -> None:
         for fight in session.fights:
             if fight.fight_id == fight_id:
                 attempts_summary = []
-                for attempt in fight.attempts:
+                for attempt in fight.completed_attempts:
                     attempts_summary.append({
                         "attempt_number": attempt.attempt_number,
                         "outcome": attempt.outcome.value,
@@ -163,7 +163,7 @@ def register_routes(app: Flask) -> None:
         for fight in session.fights:
             if fight.fight_id == fight_id:
                 # Find the attempt
-                for attempt in fight.attempts:
+                for attempt in fight.completed_attempts:
                     if attempt.attempt_number == attempt_num:
                         return jsonify(attempt.to_dict())
                 return jsonify({"error": "Attempt not found"}), 404

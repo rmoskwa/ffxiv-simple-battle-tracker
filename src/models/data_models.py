@@ -234,6 +234,11 @@ class Fight:
         return None
 
     @property
+    def completed_attempts(self) -> List[FightAttempt]:
+        """Get only completed attempts (excludes in_progress)."""
+        return [a for a in self.attempts if a.outcome != AttemptOutcome.IN_PROGRESS]
+
+    @property
     def total_wipes(self) -> int:
         """Count total number of wipes."""
         return sum(1 for a in self.attempts if a.outcome == AttemptOutcome.WIPE)
@@ -245,8 +250,8 @@ class Fight:
 
     @property
     def total_deaths(self) -> int:
-        """Count total number of deaths across all attempts."""
-        return sum(len(a.deaths) for a in self.attempts)
+        """Count total number of deaths across completed attempts."""
+        return sum(len(a.deaths) for a in self.completed_attempts)
 
     def start_new_attempt(self, start_time: datetime) -> FightAttempt:
         """Start a new fight attempt."""
@@ -265,17 +270,17 @@ class Fight:
             self.current_attempt.outcome = outcome
 
     def get_cross_attempt_stats(self) -> dict:
-        """Generate statistics across all attempts in this fight."""
+        """Generate statistics across completed attempts in this fight."""
         all_deaths: Dict[str, int] = {}  # player -> count
 
-        for attempt in self.attempts:
+        for attempt in self.completed_attempts:
             for death in attempt.deaths:
                 if death.player_name not in all_deaths:
                     all_deaths[death.player_name] = 0
                 all_deaths[death.player_name] += 1
 
         return {
-            "total_attempts": len(self.attempts),
+            "total_attempts": len(self.completed_attempts),
             "total_wipes": self.total_wipes,
             "total_victories": self.total_victories,
             "deaths_by_player": all_deaths,
@@ -293,8 +298,8 @@ class Fight:
             "zone_name": self.zone_name,
             "boss_name": self.boss_name,
             "start_time": self.start_time.isoformat() if self.start_time else None,
-            "attempts": [attempt.to_dict() for attempt in self.attempts],
-            "total_attempts": len(self.attempts),
+            "attempts": [attempt.to_dict() for attempt in self.completed_attempts],
+            "total_attempts": len(self.completed_attempts),
             "total_wipes": self.total_wipes,
             "total_victories": self.total_victories,
             "total_deaths": self.total_deaths,
@@ -327,10 +332,10 @@ class RaidSession:
 
     @property
     def attempts(self) -> List[FightAttempt]:
-        """Get all attempts across all fights (for backwards compatibility)."""
+        """Get all completed attempts across all fights (for backwards compatibility)."""
         all_attempts = []
         for fight in self.fights:
-            all_attempts.extend(fight.attempts)
+            all_attempts.extend(fight.completed_attempts)
         return all_attempts
 
     @property
@@ -388,13 +393,13 @@ class RaidSession:
             self.current_fight.finalize_current_attempt(end_time, outcome)
 
     def get_cross_attempt_stats(self) -> dict:
-        """Generate statistics across all attempts in all fights."""
+        """Generate statistics across all completed attempts in all fights."""
         all_ability_hits: Dict[str, Dict[str, int]] = {}  # ability -> player -> count
         all_deaths: Dict[str, int] = {}  # player -> count
         all_debuffs: Dict[str, Dict[str, int]] = {}  # debuff -> player -> count
 
         for fight in self.fights:
-            for attempt in fight.attempts:
+            for attempt in fight.completed_attempts:
                 # Count ability hits per player per ability
                 for hit in attempt.ability_hits:
                     if hit.ability_name not in all_ability_hits:

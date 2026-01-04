@@ -37,8 +37,6 @@ const elements = {
     abilitiesTable: document.querySelector('#abilities-table tbody'),
     debuffsTable: document.querySelector('#debuffs-table tbody'),
     deathsTable: document.querySelector('#deaths-table tbody'),
-    abilitiesSummary: document.getElementById('abilities-summary'),
-    debuffsSummary: document.getElementById('debuffs-summary'),
     timelineContent: document.getElementById('timeline-content'),
     timelineDuration: document.getElementById('timeline-duration'),
     breakdownPrompt: document.getElementById('breakdown-prompt'),
@@ -528,11 +526,9 @@ function renderFightsList(fights) {
         header.innerHTML = `
             <div class="fight-info">
                 <div class="fight-zone">${fight.zone_name}</div>
-                <div class="fight-boss">${fight.boss_name}</div>
             </div>
             <div class="fight-stats">
                 <span class="fight-stat">${fight.total_attempts} attempts</span>
-                <span class="fight-stat">${fight.total_deaths} deaths</span>
             </div>
             <span class="fight-toggle">▼</span>
         `;
@@ -577,12 +573,15 @@ async function loadFightAttempts(fightId, container) {
 
     container.innerHTML = '';
 
-    if (data.attempts.length === 0) {
+    // Filter out in_progress attempts (incomplete attempts from log end)
+    const completedAttempts = data.attempts.filter(a => a.outcome !== 'in_progress');
+
+    if (completedAttempts.length === 0) {
         container.innerHTML = '<div class="empty-state"><p>No attempts</p></div>';
         return;
     }
 
-    data.attempts.forEach(attempt => {
+    completedAttempts.forEach(attempt => {
         const item = document.createElement('div');
         item.className = 'attempt-item';
         item.dataset.fightId = fightId;
@@ -1000,7 +999,6 @@ function renderAbilitiesTable(abilities, playerFilter, abilityFilter, searchFilt
 
     if (filtered.length === 0) {
         elements.abilitiesTable.innerHTML = '<tr><td colspan="6" class="empty-state">No ability hits</td></tr>';
-        elements.abilitiesSummary.innerHTML = '';
         return;
     }
 
@@ -1016,34 +1014,6 @@ function renderAbilitiesTable(abilities, playerFilter, abilityFilter, searchFilt
         `;
         elements.abilitiesTable.appendChild(row);
     });
-
-    renderAbilitiesSummary(filtered);
-}
-
-// Render abilities summary
-function renderAbilitiesSummary(abilities) {
-    const byAbility = {};
-    abilities.forEach(a => {
-        if (!byAbility[a.ability_name]) {
-            byAbility[a.ability_name] = { count: 0, damage: 0 };
-        }
-        byAbility[a.ability_name].count++;
-        byAbility[a.ability_name].damage += a.damage;
-    });
-
-    const sorted = Object.entries(byAbility).sort((a, b) => b[1].count - a[1].count);
-
-    elements.abilitiesSummary.innerHTML = `
-        <h3>Summary by Ability</h3>
-        <div class="summary-grid">
-            ${sorted.map(([name, data]) => `
-                <div class="summary-item">
-                    <span class="name">${name}</span>
-                    <span class="value">${data.count} hits (${data.damage.toLocaleString()} dmg)</span>
-                </div>
-            `).join('')}
-        </div>
-    `;
 }
 
 // Render debuffs table
@@ -1072,7 +1042,6 @@ function renderDebuffsTable(debuffs, playerFilter, debuffFilter, searchFilter = 
 
     if (filtered.length === 0) {
         elements.debuffsTable.innerHTML = '<tr><td colspan="5" class="empty-state">No debuffs applied</td></tr>';
-        elements.debuffsSummary.innerHTML = '';
         return;
     }
 
@@ -1089,33 +1058,6 @@ function renderDebuffsTable(debuffs, playerFilter, debuffFilter, searchFilter = 
         `;
         elements.debuffsTable.appendChild(row);
     });
-
-    renderDebuffsSummary(filtered);
-}
-
-// Render debuffs summary
-function renderDebuffsSummary(debuffs) {
-    const byDebuff = {};
-    debuffs.forEach(d => {
-        if (!byDebuff[d.effect_name]) {
-            byDebuff[d.effect_name] = 0;
-        }
-        byDebuff[d.effect_name]++;
-    });
-
-    const sorted = Object.entries(byDebuff).sort((a, b) => b[1] - a[1]);
-
-    elements.debuffsSummary.innerHTML = `
-        <h3>Summary by Debuff</h3>
-        <div class="summary-grid">
-            ${sorted.map(([name, count]) => `
-                <div class="summary-item">
-                    <span class="name">${name}</span>
-                    <span class="value">${count} applications</span>
-                </div>
-            `).join('')}
-        </div>
-    `;
 }
 
 // Render deaths table
