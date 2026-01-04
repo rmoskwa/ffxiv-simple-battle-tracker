@@ -257,7 +257,9 @@ class FightAttempt:
         """Get the reference time for timeline (first damage or start time)."""
         return self.first_damage_time if self.first_damage_time else self.start_time
 
-    def calculate_unmitigated_damage(self) -> None:
+    def calculate_unmitigated_damage(
+        self, players: dict[str, "Player"] | None = None
+    ) -> None:
         """Calculate unmitigated damage for all ability hits in this attempt.
 
         This method updates each AbilityHit's unmitigated_damage field based on
@@ -267,8 +269,16 @@ class FightAttempt:
         because shields absorb damage after mitigation is applied. So:
         - total_damage = damage + absorbed = mitigated damage before shields
         - unmitigated = total_damage / (1 - mitigation_percent)
+
+        Tank Mastery (20% passive damage reduction) is automatically factored in
+        when the target is identified as a tank job.
+
+        Args:
+            players: Optional dict of player_id -> Player for looking up job info.
+                     If provided, Tank Mastery will be factored in for tank targets.
         """
         # Import here to avoid circular imports
+        from ..data.mitigation_db import is_tank_job
         from ..parser.mitigation_calc import calculate_unmitigated_damage
 
         for hit in self.ability_hits:
@@ -279,9 +289,16 @@ class FightAttempt:
                 active_mits = self.get_active_mitigations_at(
                     hit.timestamp, hit.target_id
                 )
-                # Calculate unmitigated damage (pass hit_type for accurate mitigation)
+
+                # Check if target is a tank (for Tank Mastery passive)
+                is_tank = False
+                if players and hit.target_id in players:
+                    player = players[hit.target_id]
+                    is_tank = is_tank_job(player.job_id)
+
+                # Calculate unmitigated damage (pass hit_type and tank status)
                 hit.unmitigated_damage = calculate_unmitigated_damage(
-                    hit.total_damage, active_mits, hit.hit_type
+                    hit.total_damage, active_mits, hit.hit_type, is_tank
                 )
             else:
                 # No damage, no unmitigated damage

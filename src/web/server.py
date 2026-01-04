@@ -74,8 +74,9 @@ def apply_manual_hit_types(app: Flask) -> int:
                         needs_recalc = True
 
             # Recalculate unmitigated damage if any hit types changed
+            # Pass players dict so Tank Mastery can be factored in for tanks
             if needs_recalc:
-                attempt.calculate_unmitigated_damage()
+                attempt.calculate_unmitigated_damage(session.players)
 
     return updated_count
 

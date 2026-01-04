@@ -475,6 +475,13 @@ BOSS_DEBUFFS: dict[str, BossDebuff] = {
 FEINT_MAGIC_MITIGATION = 5  # Feint reduces magic by 5% (physical is 10%)
 ADDLE_PHYSICAL_MITIGATION = 5  # Addle reduces physical by 5% (magic is 10%)
 
+# Tank Mastery - passive trait that reduces damage taken by 20% for all tanks
+# This is NOT a buff that appears in logs - it's always active on tank jobs
+TANK_MASTERY_MITIGATION = 20  # 20% passive damage reduction for tanks
+
+# Tank job IDs (hex values from ACT logs)
+TANK_JOB_IDS = frozenset({"13", "15", "20", "25"})  # PLD, WAR, DRK, GNB
+
 
 # =============================================================================
 # Lookup Functions
@@ -521,6 +528,18 @@ def get_party_wide_mitigations() -> list[MitigationEffect]:
         List of MitigationEffect objects that affect the whole party
     """
     return [m for m in MITIGATION_BUFFS.values() if m.is_party_wide]
+
+
+def is_tank_job(job_id: str) -> bool:
+    """Check if a job ID corresponds to a tank job.
+
+    Args:
+        job_id: The job ID string (e.g., "13" for Paladin)
+
+    Returns:
+        True if the job is a tank (PLD, WAR, DRK, GNB), False otherwise
+    """
+    return job_id.upper() in TANK_JOB_IDS
 
 
 def get_effective_mitigation_percent(

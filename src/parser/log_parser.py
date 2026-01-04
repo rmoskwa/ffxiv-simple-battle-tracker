@@ -374,7 +374,10 @@ class LogParser:
             # This is needed for accurate unmitigated damage calculation
             self.session.current_attempt.resolve_hit_types()
             # Calculate unmitigated damage using hit types for accurate mitigation
-            self.session.current_attempt.calculate_unmitigated_damage()
+            # Pass players dict so Tank Mastery can be factored in for tanks
+            self.session.current_attempt.calculate_unmitigated_damage(
+                self.session.players
+            )
 
         # Notify callback
         if self._on_attempt_complete and self.session.current_attempt:

@@ -4,12 +4,17 @@ This module calculates unmitigated damage by reversing the mitigation effects
 that were active when damage was dealt.
 """
 
-from ..data.mitigation_db import get_effective_mitigation_percent
+from ..data.mitigation_db import (
+    TANK_MASTERY_MITIGATION,
+    get_effective_mitigation_percent,
+)
 from ..models.data_models import ActiveMitigation
 
 
 def calculate_total_mitigation(
-    mitigations: list[ActiveMitigation], hit_type: str | None = None
+    mitigations: list[ActiveMitigation],
+    hit_type: str | None = None,
+    is_tank: bool = False,
 ) -> float:
     """Calculate the total mitigation percentage from a list of active mitigations.
 
@@ -19,18 +24,28 @@ def calculate_total_mitigation(
     This function also handles damage-type-specific mitigations like Feint and
     Addle, which have different values for physical vs magical damage.
 
+    Tank Mastery (20% passive damage reduction) is automatically included when
+    is_tank is True.
+
     Args:
         mitigations: List of active mitigation effects
         hit_type: The damage type ("Physical", "Magical", or None for unknown)
+        is_tank: Whether the target is a tank (adds Tank Mastery 20% reduction)
 
     Returns:
         Total mitigation as a decimal (e.g., 0.28 for 28% mitigation)
     """
-    if not mitigations:
-        return 0.0
-
     # Calculate multiplicative stacking
     damage_multiplier = 1.0
+
+    # Apply Tank Mastery passive if target is a tank
+    if is_tank:
+        damage_multiplier *= 1.0 - (TANK_MASTERY_MITIGATION / 100.0)
+
+    if not mitigations:
+        # Return just Tank Mastery if applicable, or 0 if not
+        return 1.0 - damage_multiplier
+
     for mit in mitigations:
         # Get the effective mitigation percentage based on hit type
         effective_percent = get_effective_mitigation_percent(
@@ -47,6 +62,7 @@ def calculate_unmitigated_damage(
     actual_damage: int,
     mitigations: list[ActiveMitigation],
     hit_type: str | None = None,
+    is_tank: bool = False,
 ) -> int:
     """Calculate the unmitigated (base) damage from the actual damage taken.
 
@@ -55,10 +71,14 @@ def calculate_unmitigated_damage(
     For example, if actual damage is 11,661 and total mitigation is 77.11%:
     unmitigated = 11,661 / (1 - 0.7711) = 11,661 / 0.2289 ≈ 50,942
 
+    Tank Mastery (20% passive damage reduction) is automatically factored in
+    when is_tank is True.
+
     Args:
         actual_damage: The actual damage dealt after mitigation
         mitigations: List of active mitigation effects at the time of damage
         hit_type: The damage type ("Physical", "Magical", or None for unknown)
+        is_tank: Whether the target is a tank (adds Tank Mastery 20% reduction)
 
     Returns:
         The calculated unmitigated damage
@@ -66,7 +86,7 @@ def calculate_unmitigated_damage(
     if actual_damage <= 0:
         return 0
 
-    total_mitigation = calculate_total_mitigation(mitigations, hit_type)
+    total_mitigation = calculate_total_mitigation(mitigations, hit_type, is_tank)
 
     # If no mitigation, unmitigated equals actual
     if total_mitigation <= 0:
