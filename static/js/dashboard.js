@@ -24,7 +24,6 @@ const elements = {
     totalDeaths: document.getElementById('total-deaths'),
     avgDuration: document.getElementById('avg-duration'),
     fightsList: document.getElementById('fights-list'),
-    deathsSummaryList: document.getElementById('deaths-summary-list'),
     attemptHeader: document.querySelector('#attempt-header h2'),
     attemptMeta: document.getElementById('attempt-meta'),
     searchFilter: document.getElementById('search-filter'),
@@ -378,8 +377,6 @@ async function loadSummary() {
 
         const avgDuration = fightData.total_attempts > 0 ? totalDuration / fightData.total_attempts : 0;
         elements.avgDuration.textContent = formatDuration(avgDuration);
-
-        renderDeathsSummary(deathsByPlayer);
     } else {
         // No fight selected - show overall summary
         currentFightData = null;  // Clear cached fight data
@@ -413,8 +410,6 @@ async function loadSummary() {
             const avgDuration = totalAttempts > 0 ? totalDuration / totalAttempts : 0;
             elements.avgDuration.textContent = formatDuration(avgDuration);
         }
-
-        renderDeathsSummary(data.deaths_by_player);
     }
 }
 
@@ -1551,33 +1546,6 @@ function sortPlayersByRole(players) {
         const orderB = roleOrder[roleB] ?? 3;
         if (orderA !== orderB) return orderA - orderB;
         return a.localeCompare(b);
-    });
-}
-
-// Render deaths summary
-function renderDeathsSummary(deathsByPlayer) {
-    elements.deathsSummaryList.innerHTML = '';
-
-    const sorted = Object.entries(deathsByPlayer).sort((a, b) => b[1] - a[1]);
-
-    if (sorted.length === 0) {
-        elements.deathsSummaryList.innerHTML = '<div class="empty-state"><p>No deaths recorded</p></div>';
-        return;
-    }
-
-    sorted.forEach(([player, count]) => {
-        const item = document.createElement('div');
-        item.className = 'death-summary-item';
-        const jobName = getPlayerJob(player);
-        const jobLabel = jobName ? `<span class="player-job">${jobName}</span>` : '';
-        item.innerHTML = `
-            <span class="player-info">
-                <span class="player-name">${player}</span>
-                ${jobLabel}
-            </span>
-            <span class="death-count">${count}</span>
-        `;
-        elements.deathsSummaryList.appendChild(item);
     });
 }
 
