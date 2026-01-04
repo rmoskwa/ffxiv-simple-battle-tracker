@@ -26,11 +26,15 @@ const elements = {
     fightsList: document.getElementById('fights-list'),
     attemptHeader: document.querySelector('#attempt-header h2'),
     attemptMeta: document.getElementById('attempt-meta'),
-    searchFilter: document.getElementById('search-filter'),
-    playerFilter: document.getElementById('player-filter'),
-    abilityFilter: document.getElementById('ability-filter'),
-    debuffFilter: document.getElementById('debuff-filter'),
-    clearFilters: document.getElementById('clear-filters'),
+    // Abilities tab filters
+    abilitiesPlayerFilter: document.getElementById('abilities-player-filter'),
+    abilitiesAbilityFilter: document.getElementById('abilities-ability-filter'),
+    // Debuffs tab filters
+    debuffsPlayerFilter: document.getElementById('debuffs-player-filter'),
+    debuffsDebuffFilter: document.getElementById('debuffs-debuff-filter'),
+    // Deaths tab filters
+    deathsPlayerFilter: document.getElementById('deaths-player-filter'),
+    // Global options
     showUnknownFilter: document.getElementById('show-unknown-filter'),
     refreshBtn: document.getElementById('refresh-btn'),
     abilitiesTable: document.querySelector('#abilities-table tbody'),
@@ -121,12 +125,6 @@ function initKeyboardShortcuts() {
         if (e.ctrlKey && e.key === 'r') {
             e.preventDefault();
             refreshData();
-        }
-
-        // Ctrl+F for search
-        if (e.ctrlKey && e.key === 'f') {
-            e.preventDefault();
-            elements.searchFilter.focus();
         }
 
         // Escape to clear filters
@@ -276,12 +274,26 @@ function initTabs() {
 
 // Filter handling
 function initFilters() {
-    elements.playerFilter.addEventListener('change', applyFilters);
-    elements.abilityFilter.addEventListener('change', applyFilters);
-    elements.debuffFilter.addEventListener('change', applyFilters);
-    elements.searchFilter.addEventListener('input', debounce(applyFilters, 300));
-    elements.showUnknownFilter.addEventListener('change', applyFilters);
-    elements.clearFilters.addEventListener('click', clearAllFilters);
+    // Abilities tab filters
+    elements.abilitiesPlayerFilter.addEventListener('change', applyAbilitiesFilters);
+    elements.abilitiesAbilityFilter.addEventListener('change', applyAbilitiesFilters);
+
+    // Debuffs tab filters
+    elements.debuffsPlayerFilter.addEventListener('change', applyDebuffsFilters);
+    elements.debuffsDebuffFilter.addEventListener('change', applyDebuffsFilters);
+
+    // Deaths tab filters
+    elements.deathsPlayerFilter.addEventListener('change', applyDeathsFilters);
+
+    // Global show unknown filter (affects abilities, debuffs, timeline)
+    elements.showUnknownFilter.addEventListener('change', applyAllFilters);
+
+    // Clear buttons for each tab
+    document.querySelectorAll('.clear-tab-filter').forEach(btn => {
+        btn.addEventListener('click', () => {
+            clearTabFilters(btn.dataset.tab);
+        });
+    });
 
     // Breakdown-specific filter listeners
     elements.breakdownAbilityFilter.addEventListener('change', () => {
@@ -292,19 +304,64 @@ function initFilters() {
     });
 }
 
-function clearAllFilters() {
-    elements.searchFilter.value = '';
-    elements.playerFilter.value = '';
-    elements.abilityFilter.value = '';
-    elements.debuffFilter.value = '';
-    elements.showUnknownFilter.checked = false;
-    applyFilters();
+function clearTabFilters(tab) {
+    switch (tab) {
+        case 'abilities':
+            elements.abilitiesPlayerFilter.value = '';
+            elements.abilitiesAbilityFilter.value = '';
+            applyAbilitiesFilters();
+            break;
+        case 'debuffs':
+            elements.debuffsPlayerFilter.value = '';
+            elements.debuffsDebuffFilter.value = '';
+            applyDebuffsFilters();
+            break;
+        case 'deaths':
+            elements.deathsPlayerFilter.value = '';
+            applyDeathsFilters();
+            break;
+    }
 }
 
-function applyFilters() {
-    if (currentFight && currentAttempt) {
-        loadAttemptDetails(currentFight, currentAttempt);
+function applyAbilitiesFilters() {
+    if (!attemptData) return;
+    const playerFilter = elements.abilitiesPlayerFilter.value;
+    const abilityFilter = elements.abilitiesAbilityFilter.value;
+    const showUnknown = elements.showUnknownFilter.checked;
+    renderAbilitiesTable(attemptData.ability_hits, playerFilter, abilityFilter, showUnknown);
+}
+
+function applyDebuffsFilters() {
+    if (!attemptData) return;
+    const playerFilter = elements.debuffsPlayerFilter.value;
+    const debuffFilter = elements.debuffsDebuffFilter.value;
+    const showUnknown = elements.showUnknownFilter.checked;
+    renderDebuffsTable(attemptData.debuffs_applied, playerFilter, debuffFilter, showUnknown);
+}
+
+function applyDeathsFilters() {
+    if (!attemptData) return;
+    const playerFilter = elements.deathsPlayerFilter.value;
+    renderDeathsTable(attemptData.deaths, playerFilter);
+}
+
+function applyAllFilters() {
+    applyAbilitiesFilters();
+    applyDebuffsFilters();
+    applyDeathsFilters();
+    if (attemptData) {
+        renderTimeline(attemptData, elements.showUnknownFilter.checked);
     }
+}
+
+function clearAllFilters() {
+    elements.abilitiesPlayerFilter.value = '';
+    elements.abilitiesAbilityFilter.value = '';
+    elements.debuffsPlayerFilter.value = '';
+    elements.debuffsDebuffFilter.value = '';
+    elements.deathsPlayerFilter.value = '';
+    elements.showUnknownFilter.checked = false;
+    applyAllFilters();
 }
 
 function debounce(func, wait) {
@@ -337,7 +394,6 @@ async function loadSession() {
     if (!data) return;
 
     sessionData = data;
-    populatePlayerFilter(data.players);
 }
 
 // Load summary with extended stats
@@ -349,9 +405,6 @@ async function loadSummary() {
 
         // Cache fight data for job lookups in breakdown tables
         currentFightData = fightData;
-
-        // Update player filter to show only players from this fight
-        populatePlayerFilterFromFight(fightData);
 
         elements.totalFights.textContent = 1;
         elements.totalAttempts.textContent = fightData.total_attempts || 0;
@@ -641,24 +694,20 @@ async function loadAttemptDetails(fightId, attemptNumber) {
     elements.attemptHeader.textContent = `Attempt #${data.attempt_number} - ${data.outcome.toUpperCase()}`;
     elements.attemptMeta.textContent = `${zoneName} - ${data.boss_name} - ${formatDuration(data.duration_seconds)} - ${formatTime(data.start_time)}`;
 
-    // Populate ability and debuff filters (per-attempt filters for Abilities/Debuffs tabs)
-    populateAbilityFilter(data.ability_hits);
-    populateDebuffFilter(data.debuffs_applied);
+    // Populate tab-specific filters
+    populateAbilitiesTabFilters(data);
+    populateDebuffsTabFilters(data);
+    populateDeathsTabFilters(data);
 
     // Populate breakdown-specific filters (all abilities/debuffs across all attempts)
     populateBreakdownAbilityFilter();
     populateBreakdownDebuffFilter();
 
-    // Get filters
-    const searchFilter = elements.searchFilter.value.toLowerCase();
-    const playerFilter = elements.playerFilter.value;
-    const abilityFilter = elements.abilityFilter.value;
-    const debuffFilter = elements.debuffFilter.value;
+    // Render all tables with current filter values
     const showUnknown = elements.showUnknownFilter.checked;
-
-    renderAbilitiesTable(data.ability_hits, playerFilter, abilityFilter, searchFilter, showUnknown);
-    renderDebuffsTable(data.debuffs_applied, playerFilter, debuffFilter, searchFilter, showUnknown);
-    renderDeathsTable(data.deaths, searchFilter);
+    renderAbilitiesTable(data.ability_hits, elements.abilitiesPlayerFilter.value, elements.abilitiesAbilityFilter.value, showUnknown);
+    renderDebuffsTable(data.debuffs_applied, elements.debuffsPlayerFilter.value, elements.debuffsDebuffFilter.value, showUnknown);
+    renderDeathsTable(data.deaths, elements.deathsPlayerFilter.value);
     renderTimeline(data, showUnknown);
 
     // Breakdown tabs use their own dedicated dropdowns
@@ -666,133 +715,43 @@ async function loadAttemptDetails(fightId, attemptNumber) {
     renderDebuffBreakdown(elements.breakdownDebuffFilter.value);
 }
 
-// Populate player filter
-function populatePlayerFilter(players) {
-    const currentValue = elements.playerFilter.value;
-    elements.playerFilter.innerHTML = '<option value="">All Players</option>';
+// Populate abilities tab filters (player + ability)
+function populateAbilitiesTabFilters(data) {
+    // Get unique players from ability hits (targets that are players)
+    const players = extractPlayersFromData(data);
+    populatePlayerDropdown(elements.abilitiesPlayerFilter, players);
 
-    // Sort players by job role then name
-    const sortedPlayers = Object.values(players).sort((a, b) => {
-        // Sort by job name first, then player name
-        const jobCompare = (a.job_name || '').localeCompare(b.job_name || '');
-        if (jobCompare !== 0) return jobCompare;
-        return a.name.localeCompare(b.name);
-    });
-
-    sortedPlayers.forEach(player => {
-        const option = document.createElement('option');
-        option.value = player.name;
-        const jobLabel = player.job_name ? ` (${player.job_name})` : '';
-        option.textContent = `${player.name}${jobLabel}`;
-        elements.playerFilter.appendChild(option);
-    });
-
-    elements.playerFilter.value = currentValue;
-}
-
-// Populate player filter from fight data (only shows players who participated in the fight)
-function populatePlayerFilterFromFight(fightData) {
-    const currentValue = elements.playerFilter.value;
-    elements.playerFilter.innerHTML = '<option value="">All Players</option>';
-
-    // First, extract player names who actually participated (were hit, died, or got debuffs)
-    const participantNames = new Set();
-
-    if (fightData.attempts) {
-        for (const attempt of fightData.attempts) {
-            // Get players from ability hits (targets that are players - ID starts with "10")
-            if (attempt.ability_hits) {
-                for (const hit of attempt.ability_hits) {
-                    if (hit.target_id && hit.target_id.startsWith('10') && hit.target_name) {
-                        participantNames.add(hit.target_name);
-                    }
-                }
-            }
-            // Get players from deaths
-            if (attempt.deaths) {
-                for (const death of attempt.deaths) {
-                    if (death.player_name) {
-                        participantNames.add(death.player_name);
-                    }
-                }
-            }
-            // Get players from debuffs
-            if (attempt.debuffs_applied) {
-                for (const debuff of attempt.debuffs_applied) {
-                    if (debuff.target_id && debuff.target_id.startsWith('10') && debuff.target_name) {
-                        participantNames.add(debuff.target_name);
-                    }
-                }
-            }
-        }
-    }
-
-    // Now build player list with job info from fightData.players (if available)
-    const participants = [];
-    for (const name of participantNames) {
-        // Look up player in fight's player data to get job info
-        let jobName = '';
-        if (fightData.players) {
-            const playerEntry = Object.values(fightData.players).find(p => p.name === name);
-            if (playerEntry) {
-                jobName = playerEntry.job_name || '';
-            }
-        }
-        participants.push({ name, job_name: jobName });
-    }
-
-    // Sort by job name then player name
-    participants.sort((a, b) => {
-        const jobCompare = (a.job_name || '').localeCompare(b.job_name || '');
-        if (jobCompare !== 0) return jobCompare;
-        return a.name.localeCompare(b.name);
-    });
-
-    participants.forEach(player => {
-        const option = document.createElement('option');
-        option.value = player.name;
-        const jobLabel = player.job_name ? ` (${player.job_name})` : '';
-        option.textContent = `${player.name}${jobLabel}`;
-        elements.playerFilter.appendChild(option);
-    });
-
-    // Restore selection if still valid
-    if (currentValue && participantNames.has(currentValue)) {
-        elements.playerFilter.value = currentValue;
-    }
-}
-
-// Populate ability filter
-function populateAbilityFilter(abilities) {
-    const currentValue = elements.abilityFilter.value;
-    const uniqueAbilities = [...new Set(abilities.map(a => a.ability_name))].sort();
-
-    elements.abilityFilter.innerHTML = '<option value="">All Abilities</option>';
-
+    // Populate ability filter
+    const currentAbilityValue = elements.abilitiesAbilityFilter.value;
+    const uniqueAbilities = [...new Set(data.ability_hits.map(a => a.ability_name))].sort();
+    elements.abilitiesAbilityFilter.innerHTML = '<option value="">All Abilities</option>';
     uniqueAbilities.forEach(name => {
         const option = document.createElement('option');
         option.value = name;
         option.textContent = name;
-        elements.abilityFilter.appendChild(option);
+        elements.abilitiesAbilityFilter.appendChild(option);
     });
-
-    elements.abilityFilter.value = currentValue;
+    if (uniqueAbilities.includes(currentAbilityValue)) {
+        elements.abilitiesAbilityFilter.value = currentAbilityValue;
+    }
 }
 
-// Populate debuff filter with optgroups for source type
-function populateDebuffFilter(debuffs) {
-    const currentValue = elements.debuffFilter.value;
+// Populate debuffs tab filters (player + debuff)
+function populateDebuffsTabFilters(data) {
+    // Get unique players from debuffs (targets that are players)
+    const players = extractPlayersFromData(data);
+    populatePlayerDropdown(elements.debuffsPlayerFilter, players);
 
-    // Group debuffs by source type
+    // Populate debuff filter with optgroups
+    const currentDebuffValue = elements.debuffsDebuffFilter.value;
     const debuffsByType = { environment: new Set(), enemy: new Set() };
-    debuffs.forEach(d => {
+    data.debuffs_applied.forEach(d => {
         const sourceType = d.source_type || 'enemy';
         debuffsByType[sourceType].add(d.effect_name);
     });
 
-    elements.debuffFilter.innerHTML = '<option value="">All Debuffs</option>';
+    elements.debuffsDebuffFilter.innerHTML = '<option value="">All Debuffs</option>';
 
-    // Add Mechanic (environment) group first if there are any
     if (debuffsByType.environment.size > 0) {
         const mechGroup = document.createElement('optgroup');
         mechGroup.label = 'Mechanic';
@@ -802,10 +761,9 @@ function populateDebuffFilter(debuffs) {
             option.textContent = name;
             mechGroup.appendChild(option);
         });
-        elements.debuffFilter.appendChild(mechGroup);
+        elements.debuffsDebuffFilter.appendChild(mechGroup);
     }
 
-    // Add Enemy group
     if (debuffsByType.enemy.size > 0) {
         const enemyGroup = document.createElement('optgroup');
         enemyGroup.label = 'Enemy';
@@ -815,10 +773,94 @@ function populateDebuffFilter(debuffs) {
             option.textContent = name;
             enemyGroup.appendChild(option);
         });
-        elements.debuffFilter.appendChild(enemyGroup);
+        elements.debuffsDebuffFilter.appendChild(enemyGroup);
     }
 
-    elements.debuffFilter.value = currentValue;
+    // Restore selection if valid
+    const allDebuffs = [...debuffsByType.environment, ...debuffsByType.enemy];
+    if (allDebuffs.includes(currentDebuffValue)) {
+        elements.debuffsDebuffFilter.value = currentDebuffValue;
+    }
+}
+
+// Populate deaths tab filters (player only)
+function populateDeathsTabFilters(data) {
+    const players = extractPlayersFromData(data);
+    populatePlayerDropdown(elements.deathsPlayerFilter, players);
+}
+
+// Helper: Extract players from attempt data
+function extractPlayersFromData(data) {
+    const participantNames = new Set();
+    const playerInfo = {};
+
+    // From ability hits
+    if (data.ability_hits) {
+        data.ability_hits.forEach(hit => {
+            if (hit.target_id && hit.target_id.startsWith('10') && hit.target_name) {
+                participantNames.add(hit.target_name);
+            }
+        });
+    }
+
+    // From debuffs
+    if (data.debuffs_applied) {
+        data.debuffs_applied.forEach(debuff => {
+            if (debuff.target_id && debuff.target_id.startsWith('10') && debuff.target_name) {
+                participantNames.add(debuff.target_name);
+            }
+        });
+    }
+
+    // From deaths
+    if (data.deaths) {
+        data.deaths.forEach(death => {
+            if (death.player_name) {
+                participantNames.add(death.player_name);
+            }
+        });
+    }
+
+    // Get job info from current fight data
+    if (currentFightData && currentFightData.players) {
+        Object.values(currentFightData.players).forEach(p => {
+            if (participantNames.has(p.name)) {
+                playerInfo[p.name] = p.job_name || '';
+            }
+        });
+    }
+
+    return Array.from(participantNames).map(name => ({
+        name,
+        job_name: playerInfo[name] || ''
+    }));
+}
+
+// Helper: Populate a player dropdown
+function populatePlayerDropdown(selectElement, players) {
+    const currentValue = selectElement.value;
+    selectElement.innerHTML = '<option value="">All Players</option>';
+
+    // Sort by job name then player name
+    const sorted = players.sort((a, b) => {
+        const jobCompare = (a.job_name || '').localeCompare(b.job_name || '');
+        if (jobCompare !== 0) return jobCompare;
+        return a.name.localeCompare(b.name);
+    });
+
+    sorted.forEach(player => {
+        const option = document.createElement('option');
+        option.value = player.name;
+        const jobLabel = player.job_name ? ` (${player.job_name})` : '';
+        option.textContent = `${player.name}${jobLabel}`;
+        selectElement.appendChild(option);
+    });
+
+    // Restore selection if still valid
+    const validNames = players.map(p => p.name);
+    if (validNames.includes(currentValue)) {
+        selectElement.value = currentValue;
+    }
 }
 
 // Populate breakdown ability filter from ALL attempts in the current fight
@@ -937,7 +979,7 @@ async function populateBreakdownDebuffFilter() {
 }
 
 // Render abilities table with sorting
-function renderAbilitiesTable(abilities, playerFilter, abilityFilter, searchFilter = '', showUnknown = false) {
+function renderAbilitiesTable(abilities, playerFilter, abilityFilter, showUnknown = false) {
     let filtered = abilities;
 
     // Filter out unknown abilities unless showUnknown is checked
@@ -950,12 +992,6 @@ function renderAbilitiesTable(abilities, playerFilter, abilityFilter, searchFilt
     }
     if (abilityFilter) {
         filtered = filtered.filter(a => a.ability_name === abilityFilter);
-    }
-    if (searchFilter) {
-        filtered = filtered.filter(a =>
-            a.ability_name.toLowerCase().includes(searchFilter) ||
-            a.target_name.toLowerCase().includes(searchFilter)
-        );
     }
 
     // Sort if needed
@@ -1010,7 +1046,7 @@ function renderAbilitiesTable(abilities, playerFilter, abilityFilter, searchFilt
 }
 
 // Render debuffs table
-function renderDebuffsTable(debuffs, playerFilter, debuffFilter, searchFilter = '', showUnknown = false) {
+function renderDebuffsTable(debuffs, playerFilter, debuffFilter, showUnknown = false) {
     let filtered = debuffs;
 
     // Filter out unknown debuffs unless showUnknown is checked
@@ -1023,12 +1059,6 @@ function renderDebuffsTable(debuffs, playerFilter, debuffFilter, searchFilter = 
     }
     if (debuffFilter) {
         filtered = filtered.filter(d => d.effect_name === debuffFilter);
-    }
-    if (searchFilter) {
-        filtered = filtered.filter(d =>
-            d.effect_name.toLowerCase().includes(searchFilter) ||
-            d.target_name.toLowerCase().includes(searchFilter)
-        );
     }
 
     elements.debuffsTable.innerHTML = '';
@@ -1054,14 +1084,11 @@ function renderDebuffsTable(debuffs, playerFilter, debuffFilter, searchFilter = 
 }
 
 // Render deaths table
-function renderDeathsTable(deaths, searchFilter = '') {
+function renderDeathsTable(deaths, playerFilter = '') {
     let filtered = deaths;
 
-    if (searchFilter) {
-        filtered = filtered.filter(d =>
-            d.player_name.toLowerCase().includes(searchFilter) ||
-            (d.source_name && d.source_name.toLowerCase().includes(searchFilter))
-        );
+    if (playerFilter) {
+        filtered = filtered.filter(d => d.player_name === playerFilter);
     }
 
     elements.deathsTable.innerHTML = '';

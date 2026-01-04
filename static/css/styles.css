@@ -373,11 +373,15 @@ main {
     font-size: 0.875rem;
 }
 
-/* Filters */
-#filters {
+/* Tab Filter Bars */
+.tab-filter-bar {
     display: flex;
+    align-items: center;
     gap: 1rem;
-    margin-bottom: 1rem;
+    padding: 0.75rem 1rem;
+    background: var(--bg-tertiary);
+    border-bottom: 1px solid var(--border-color);
+    margin: -1rem -1rem 1rem -1rem;
 }
 
 .filter-group {
@@ -415,11 +419,6 @@ main {
     border-radius: 4px;
     font-size: 0.875rem;
     min-width: 180px;
-}
-
-.search-group {
-    flex: 1;
-    max-width: 250px;
 }
 
 .filter-btn {
@@ -982,8 +981,8 @@ footer {
         border-bottom: 1px solid var(--border-color);
     }
 
-    #filters {
-        flex-direction: column;
+    .tab-filter-bar {
+        flex-wrap: wrap;
     }
 
     .stats-grid {

@@ -61,32 +61,6 @@
                 <div id="attempt-meta"></div>
             </div>
 
-            <div id="filters">
-                <div class="filter-group search-group">
-                    <label for="search-filter">Search:</label>
-                    <input type="text" id="search-filter" placeholder="Filter by name... (Ctrl+F)">
-                </div>
-                <div class="filter-group">
-                    <label for="player-filter">Player:</label>
-                    <select id="player-filter">
-                        <option value="">All Players</option>
-                    </select>
-                </div>
-                <div class="filter-group">
-                    <label for="ability-filter">Ability:</label>
-                    <select id="ability-filter">
-                        <option value="">All Abilities</option>
-                    </select>
-                </div>
-                <div class="filter-group">
-                    <label for="debuff-filter">Debuff:</label>
-                    <select id="debuff-filter">
-                        <option value="">All Debuffs</option>
-                    </select>
-                </div>
-                <button id="clear-filters" class="filter-btn" title="Clear all filters">Clear</button>
-            </div>
-
             <div id="tabs">
                 <div class="tabs-left">
                     <button class="tab-btn active" data-tab="abilities" title="Press 1">Ability Hits</button>
@@ -106,6 +80,21 @@
 
             <div id="tab-content">
                 <div id="abilities-tab" class="tab-panel active">
+                    <div class="tab-filter-bar">
+                        <div class="filter-group">
+                            <label for="abilities-player-filter">Player:</label>
+                            <select id="abilities-player-filter">
+                                <option value="">All Players</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label for="abilities-ability-filter">Ability:</label>
+                            <select id="abilities-ability-filter">
+                                <option value="">All Abilities</option>
+                            </select>
+                        </div>
+                        <button class="filter-btn clear-tab-filter" data-tab="abilities" title="Clear filters">Clear</button>
+                    </div>
                     <table id="abilities-table">
                         <thead>
                             <tr>
@@ -122,6 +111,21 @@
                 </div>
 
                 <div id="debuffs-tab" class="tab-panel">
+                    <div class="tab-filter-bar">
+                        <div class="filter-group">
+                            <label for="debuffs-player-filter">Player:</label>
+                            <select id="debuffs-player-filter">
+                                <option value="">All Players</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label for="debuffs-debuff-filter">Debuff:</label>
+                            <select id="debuffs-debuff-filter">
+                                <option value="">All Debuffs</option>
+                            </select>
+                        </div>
+                        <button class="filter-btn clear-tab-filter" data-tab="debuffs" title="Clear filters">Clear</button>
+                    </div>
                     <table id="debuffs-table">
                         <thead>
                             <tr>
@@ -137,6 +141,15 @@
                 </div>
 
                 <div id="deaths-tab" class="tab-panel">
+                    <div class="tab-filter-bar">
+                        <div class="filter-group">
+                            <label for="deaths-player-filter">Player:</label>
+                            <select id="deaths-player-filter">
+                                <option value="">All Players</option>
+                            </select>
+                        </div>
+                        <button class="filter-btn clear-tab-filter" data-tab="deaths" title="Clear filters">Clear</button>
+                    </div>
                     <table id="deaths-table">
                         <thead>
                             <tr>
@@ -212,7 +225,7 @@
 
     <footer>
         <p>FFXIV Battle Tracker - Parsing ACT logs for raid analysis</p>
-        <p class="shortcuts-hint">Shortcuts: 1-6 Tabs | Ctrl+R Refresh | Ctrl+F Search | Esc Clear</p>
+        <p class="shortcuts-hint">Shortcuts: 1-6 Tabs | Ctrl+R Refresh | Esc Clear</p>
     </footer>
 
     <script src="/static/js/dashboard.js"></script>
