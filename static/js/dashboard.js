@@ -2181,19 +2181,23 @@ async function generateBestGuessTimeline() {
     // Collect ordinal-matched events
     const abilityEvents = collectOrdinalMatchedEvents(attempts, 'ability_hits', 'ability_name', showUnknown);
     const debuffEvents = collectOrdinalMatchedEvents(attempts, 'debuffs_applied', 'effect_name', showUnknown);
+    const targetingEvents = collectOrdinalMatchedEvents(attempts, 'targeting_events', 'ability_name', showUnknown);
 
     // Filter to events appearing in at least 3 attempts within ±10s of median
     const filteredAbilities = filterByConsensus(abilityEvents, 3, 10);
     const filteredDebuffs = filterByConsensus(debuffEvents, 3, 10);
+    const filteredTargeting = filterByConsensus(targetingEvents, 3, 10);
 
     // Detect and merge choice points (±5s median tolerance)
     const mergedAbilities = detectChoicePoints(filteredAbilities, 5);
     const mergedDebuffs = detectChoicePoints(filteredDebuffs, 5);
+    const mergedTargeting = detectChoicePoints(filteredTargeting, 5);
 
     // Combine and sort by time
     const allEvents = [
         ...mergedAbilities.map(e => ({ ...e, type: 'ability' })),
-        ...mergedDebuffs.map(e => ({ ...e, type: 'debuff' }))
+        ...mergedDebuffs.map(e => ({ ...e, type: 'debuff' })),
+        ...mergedTargeting.map(e => ({ ...e, type: 'targeting' }))
     ].sort((a, b) => a.medianTime - b.medianTime);
 
     // Render the best guess timeline
@@ -2448,20 +2452,22 @@ function renderBestGuessTimeline(events, totalAttempts) {
         return;
     }
 
-    // Build 2-column layout (Abilities | Debuffs)
+    // Build 3-column layout (Abilities | Debuffs | Targeting)
     const eventsByTime = new Map();
 
     events.forEach(event => {
         const timeKey = Math.floor(event.medianTime);
         if (!eventsByTime.has(timeKey)) {
-            eventsByTime.set(timeKey, { abilities: [], debuffs: [] });
+            eventsByTime.set(timeKey, { abilities: [], debuffs: [], targeting: [] });
         }
 
         const bucket = eventsByTime.get(timeKey);
         if (event.type === 'ability') {
             bucket.abilities.push(event);
-        } else {
+        } else if (event.type === 'debuff') {
             bucket.debuffs.push(event);
+        } else if (event.type === 'targeting') {
+            bucket.targeting.push(event);
         }
     });
 
@@ -2509,6 +2515,31 @@ function renderBestGuessTimeline(events, totalAttempts) {
                 <div class="simplified-event-row">
                     <span class="simplified-time">${timeStr}</span>
                     <div class="simplified-event-cell debuff ${choiceClass}">
+                        <span class="simplified-event-name">${evt.name}</span>
+                    </div>
+                </div>
+            `;
+        });
+    });
+
+    html += `
+            </div>
+        </div>
+        <div class="simplified-column targeting">
+            <div class="simplified-column-header">Targeting</div>
+            <div class="simplified-events-list">
+    `;
+
+    sortedTimes.forEach(time => {
+        const bucket = eventsByTime.get(time);
+        const timeStr = formatRelativeTime(time);
+
+        bucket.targeting.forEach(evt => {
+            const choiceClass = evt.isChoicePoint ? 'choice-point' : '';
+            html += `
+                <div class="simplified-event-row">
+                    <span class="simplified-time">${timeStr}</span>
+                    <div class="simplified-event-cell targeting ${choiceClass}">
                         <span class="simplified-event-name">${evt.name}</span>
                     </div>
                 </div>
