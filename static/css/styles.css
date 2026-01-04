@@ -745,9 +745,9 @@ tbody tr:hover {
     color: #ffb74d;
 }
 
-.simplified-column.deaths .simplified-column-header {
-    background: rgba(244, 67, 54, 0.3);
-    color: #ef9a9a;
+.simplified-column.targeting .simplified-column-header {
+    background: rgba(74, 144, 217, 0.3);
+    color: #7ab8f5;
 }
 
 .simplified-events-list {
@@ -803,9 +803,15 @@ tbody tr:hover {
     border-left-color: #00bcd4;
 }
 
-.simplified-event-cell.death {
-    background: rgba(244, 67, 54, 0.3);
-    border-left: 3px solid var(--danger);
+.simplified-event-cell.targeting.event-cast_target {
+    background: rgba(74, 144, 217, 0.25);
+    border-left: 3px solid #4a90d9;
+    color: var(--text-primary);
+}
+
+.simplified-event-cell.targeting.event-head_marker {
+    background: rgba(217, 74, 144, 0.25);
+    border-left: 3px solid #d94a90;
     color: var(--text-primary);
 }
 

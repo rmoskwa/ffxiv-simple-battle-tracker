@@ -1630,7 +1630,7 @@ function finalizeGroup(group) {
     }
 }
 
-// Render simplified timeline - 3 columns (Abilities, Debuffs, Deaths) by timestamp
+// Render simplified timeline - 3 columns (Abilities, Debuffs, Targeting) by timestamp
 function renderSimplifiedTimeline(data, showUnknown = false) {
     elements.simplifiedTimelineDuration.textContent = formatDuration(data.duration_seconds);
 
@@ -1638,10 +1638,10 @@ function renderSimplifiedTimeline(data, showUnknown = false) {
     const eventsByTime = new Map();
 
     // Helper to add event to a timestamp
-    const addEvent = (time, type, name, sourceType = null) => {
+    const addEvent = (time, type, name, sourceType = null, eventType = null) => {
         const timeKey = Math.floor(time);
         if (!eventsByTime.has(timeKey)) {
-            eventsByTime.set(timeKey, { abilities: [], debuffs: [], deaths: [] });
+            eventsByTime.set(timeKey, { abilities: [], debuffs: [], targeting: [] });
         }
         const events = eventsByTime.get(timeKey);
 
@@ -1660,9 +1660,14 @@ function renderSimplifiedTimeline(data, showUnknown = false) {
             } else {
                 events.debuffs.push({ name, count: 1, sourceType });
             }
-        } else if (type === 'death') {
-            // For deaths, name is the player who died
-            events.deaths.push({ name, count: 1 });
+        } else if (type === 'targeting') {
+            // For targeting, just show the event name (not who it's targeting)
+            const existing = events.targeting.find(e => e.name === name);
+            if (existing) {
+                existing.count++;
+            } else {
+                events.targeting.push({ name, count: 1, eventType });
+            }
         }
     };
 
@@ -1688,9 +1693,15 @@ function renderSimplifiedTimeline(data, showUnknown = false) {
         addEvent(d.relative_time_seconds, 'debuff', d.effect_name, d.source_type);
     });
 
-    // Add deaths (simplified: just player name)
-    data.deaths.forEach(d => {
-        addEvent(d.relative_time_seconds, 'death', d.player_name);
+    // Filter targeting events based on showUnknown setting
+    let targeting = data.targeting_events || [];
+    if (!showUnknown) {
+        targeting = targeting.filter(t => !t.ability_name.toLowerCase().includes('unknown'));
+    }
+
+    // Add targeting (simplified: just event name)
+    targeting.forEach(t => {
+        addEvent(t.relative_time_seconds, 'targeting', t.ability_name, null, t.event_type);
     });
 
     // Sort timestamps
@@ -1754,22 +1765,23 @@ function renderSimplifiedTimeline(data, showUnknown = false) {
     html += `
             </div>
         </div>
-        <div class="simplified-column deaths">
-            <div class="simplified-column-header">Deaths</div>
+        <div class="simplified-column targeting">
+            <div class="simplified-column-header">Targeting</div>
             <div class="simplified-events-list">
     `;
 
-    // Deaths column
+    // Targeting column
     sortedTimes.forEach(time => {
         const events = eventsByTime.get(time);
         const timeStr = formatRelativeTime(time);
 
-        if (events.deaths.length > 0) {
-            events.deaths.forEach(evt => {
+        if (events.targeting.length > 0) {
+            events.targeting.forEach(evt => {
+                const eventTypeClass = evt.eventType === 'head_marker' ? 'event-head_marker' : 'event-cast_target';
                 html += `
                     <div class="simplified-event-row">
                         <span class="simplified-time">${timeStr}</span>
-                        <div class="simplified-event-cell death">
+                        <div class="simplified-event-cell targeting ${eventTypeClass}">
                             <span class="simplified-event-name">${evt.name}</span>
                         </div>
                     </div>
