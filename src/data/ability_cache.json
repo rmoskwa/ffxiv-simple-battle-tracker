@@ -583,5 +583,275 @@
     "name": "Bloodrage",
     "attack_type_id": 5,
     "attack_type_name": "魔法"
+  },
+  "283": {
+    "name": "Mountain Buster",
+    "attack_type_id": 3,
+    "attack_type_name": "打"
+  },
+  "41B": {
+    "name": "Bury",
+    "attack_type_id": 5,
+    "attack_type_name": "魔法"
+  },
+  "41C": {
+    "name": "Burst",
+    "attack_type_id": 5,
+    "attack_type_name": "魔法"
+  },
+  "550": {
+    "name": "Rock Buster",
+    "attack_type_id": 3,
+    "attack_type_name": "打"
+  },
+  "551": {
+    "name": "Tumult",
+    "attack_type_id": 5,
+    "attack_type_name": "魔法"
+  },
+  "553": {
+    "name": "Weight of the Land",
+    "attack_type_id": 5,
+    "attack_type_name": "魔法"
+  },
+  "554": {
+    "name": "Landslide",
+    "attack_type_id": 3,
+    "attack_type_name": "打"
+  },
+  "555": {
+    "name": "Geocrush",
+    "attack_type_id": 5,
+    "attack_type_name": "魔法"
+  },
+  "556": {
+    "name": "Earthen Fury",
+    "attack_type_id": 5,
+    "attack_type_name": "魔法"
+  },
+  "1615": {
+    "name": "Snapcannon",
+    "attack_type_id": 2,
+    "attack_type_name": "突"
+  },
+  "170A": {
+    "name": "Brute Force",
+    "attack_type_id": 3,
+    "attack_type_name": "打"
+  },
+  "170B": {
+    "name": "Mind Blast",
+    "attack_type_id": 6,
+    "attack_type_name": "ブレス"
+  },
+  "170E": {
+    "name": "Mine",
+    "attack_type_id": 5,
+    "attack_type_name": "魔法"
+  },
+  "1712": {
+    "name": "Mirage",
+    "attack_type_id": 3,
+    "attack_type_name": "打"
+  },
+  "1713": {
+    "name": "Supercharge",
+    "attack_type_id": 2,
+    "attack_type_name": "突"
+  },
+  "1715": {
+    "name": "Magicked Mark",
+    "attack_type_id": 5,
+    "attack_type_name": "魔法"
+  },
+  "1717": {
+    "name": "Single Buster",
+    "attack_type_id": 5,
+    "attack_type_name": "魔法"
+  },
+  "1718": {
+    "name": "Double Buster",
+    "attack_type_id": 5,
+    "attack_type_name": "魔法"
+  },
+  "1719": {
+    "name": "Rocket Drill",
+    "attack_type_id": 2,
+    "attack_type_name": "突"
+  },
+  "171B": {
+    "name": "Magicked Mark",
+    "attack_type_id": 5,
+    "attack_type_name": "魔法"
+  },
+  "171D": {
+    "name": "Height Error",
+    "attack_type_id": 6,
+    "attack_type_name": "ブレス"
+  },
+  "171E": {
+    "name": "Enumeration",
+    "attack_type_id": 6,
+    "attack_type_name": "ブレス"
+  },
+  "171F": {
+    "name": "Bio-arithmeticks",
+    "attack_type_id": 6,
+    "attack_type_name": "ブレス"
+  },
+  "1721": {
+    "name": "Brute Force",
+    "attack_type_id": 3,
+    "attack_type_name": "打"
+  },
+  "1724": {
+    "name": "Crashing Wave",
+    "attack_type_id": 5,
+    "attack_type_name": "魔法"
+  },
+  "1727": {
+    "name": "Ice Missile",
+    "attack_type_id": 5,
+    "attack_type_name": "魔法"
+  },
+  "1728": {
+    "name": "Super Cyclone",
+    "attack_type_id": 5,
+    "attack_type_name": "魔法"
+  },
+  "7203": {
+    "name": "",
+    "attack_type_id": 4,
+    "attack_type_name": "射"
+  },
+  "7208": {
+    "name": "Mograin of Death",
+    "attack_type_id": 2,
+    "attack_type_name": "突"
+  },
+  "7214": {
+    "name": "Mog Stone IV",
+    "attack_type_id": 5,
+    "attack_type_name": "魔法"
+  },
+  "7216": {
+    "name": "Twin Pom Meteor",
+    "attack_type_id": 5,
+    "attack_type_name": "魔法"
+  },
+  "721A": {
+    "name": "Pom Holy",
+    "attack_type_id": 5,
+    "attack_type_name": "魔法"
+  },
+  "721B": {
+    "name": "Pom Holy",
+    "attack_type_id": 5,
+    "attack_type_name": "魔法"
+  },
+  "7221": {
+    "name": "Memento Moogle",
+    "attack_type_id": 5,
+    "attack_type_name": "魔法"
+  },
+  "76D5": {
+    "name": "Ruby Glow",
+    "attack_type_id": 5,
+    "attack_type_name": "魔法"
+  },
+  "76ED": {
+    "name": "Venom Rain",
+    "attack_type_id": 5,
+    "attack_type_name": "魔法"
+  },
+  "76EE": {
+    "name": "Venom Drops",
+    "attack_type_id": 5,
+    "attack_type_name": "魔法"
+  },
+  "76EF": {
+    "name": "Venom Pool",
+    "attack_type_id": 5,
+    "attack_type_name": "魔法"
+  },
+  "76F0": {
+    "name": "Crunch",
+    "attack_type_id": 1,
+    "attack_type_name": "斬"
+  },
+  "76F1": {
+    "name": "Toxic Crunch",
+    "attack_type_id": 1,
+    "attack_type_name": "斬"
+  },
+  "76F2": {
+    "name": "Sonic Howl",
+    "attack_type_id": 5,
+    "attack_type_name": "魔法"
+  },
+  "78EB": {
+    "name": "Acidic Slaver",
+    "attack_type_id": 5,
+    "attack_type_name": "魔法"
+  },
+  "79E9": {
+    "name": "Starving Stampede",
+    "attack_type_id": 3,
+    "attack_type_name": "打"
+  },
+  "7A0D": {
+    "name": "",
+    "attack_type_id": 1,
+    "attack_type_name": "斬"
+  },
+  "93C2": {
+    "name": "",
+    "attack_type_id": null,
+    "attack_type_name": null
+  },
+  "93C4": {
+    "name": "",
+    "attack_type_id": null,
+    "attack_type_name": null
+  },
+  "9A33": {
+    "name": "",
+    "attack_type_id": null,
+    "attack_type_name": null
+  },
+  "9A34": {
+    "name": "",
+    "attack_type_id": null,
+    "attack_type_name": null
+  },
+  "9A36": {
+    "name": "",
+    "attack_type_id": null,
+    "attack_type_name": null
+  },
+  "9BDD": {
+    "name": "",
+    "attack_type_id": null,
+    "attack_type_name": null
+  },
+  "941F": {
+    "name": "",
+    "attack_type_id": null,
+    "attack_type_name": null
+  },
+  "9420": {
+    "name": "",
+    "attack_type_id": null,
+    "attack_type_name": null
+  },
+  "9A2D": {
+    "name": "",
+    "attack_type_id": null,
+    "attack_type_name": null
+  },
+  "9A2C": {
+    "name": "",
+    "attack_type_id": null,
+    "attack_type_name": null
   }
 }
